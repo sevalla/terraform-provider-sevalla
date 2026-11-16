@@ -97,8 +97,6 @@
                           "company_id": {
                             "description": "Identifier of the company that owns this API key",
                             "example": "fb5e5168-4281-4bec-94c5-0d1584e9e657",
-                            "format": "uuid",
-                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
                             "type": "string"
                           },
                           "created_at": {
@@ -797,8 +795,6 @@
                     "company_id": {
                       "description": "Identifier of the company that owns this API key",
                       "example": "fb5e5168-4281-4bec-94c5-0d1584e9e657",
-                      "format": "uuid",
-                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
                       "type": "string"
                     },
                     "created_at": {
@@ -1023,8 +1019,6 @@
                     "company_id": {
                       "description": "Identifier of the company associated with the API key",
                       "example": "fb5e5168-4281-4bec-94c5-0d1584e9e657",
-                      "format": "uuid",
-                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
                       "type": "string"
                     },
                     "expires_at": {
@@ -1543,8 +1537,6 @@
                     "company_id": {
                       "description": "Identifier of the company that owns this API key",
                       "example": "fb5e5168-4281-4bec-94c5-0d1584e9e657",
-                      "format": "uuid",
-                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
                       "type": "string"
                     },
                     "created_at": {
@@ -1993,8 +1985,6 @@
                     "company_id": {
                       "description": "Identifier of the company that owns this API key",
                       "example": "fb5e5168-4281-4bec-94c5-0d1584e9e657",
-                      "format": "uuid",
-                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
                       "type": "string"
                     },
                     "created_at": {
@@ -6498,7 +6488,7 @@
                     "type": "array"
                   },
                   "auto_deploy": {
-                    "description": "Enable or disable automatic deployments on every push to the default branch. Only works with privateGit applications - has no effect on publicGit or dockerImage applications.",
+                    "description": "Enable or disable automatic deployments on every push to the default branch. Only works with privateGit applications - has no effect on publicGit or dockerImage applications. Ignored when the same request switches the source to dockerImage or app.",
                     "example": true,
                     "type": "boolean"
                   },
@@ -6552,7 +6542,7 @@
                     "type": "array"
                   },
                   "default_branch": {
-                    "description": "Git branch used for automatic and manual deployments when no branch is explicitly specified",
+                    "description": "Git branch used for automatic and manual deployments when no branch is explicitly specified. Ignored when the same request switches the source to dockerImage or app.",
                     "example": "main",
                     "minLength": 1,
                     "type": "string"
@@ -14082,7 +14072,7 @@
                     "type": "string"
                   },
                   "domain_name": {
-                    "description": "The custom domain name to add to the application",
+                    "description": "The custom domain name to add to the application. A leading `*.` adds a wildcard domain: `*.example.com` is saved as `example.com` with `is_wildcard` set to true.",
                     "example": "app.example.com",
                     "minLength": 1,
                     "type": "string"
@@ -24605,7 +24595,6 @@
                           "entrypoint": {
                             "description": "Command used to start the process",
                             "example": "npm start",
-                            "maxLength": 1024,
                             "type": "string"
                           },
                           "id": {
@@ -25735,7 +25724,7 @@
                     "type": "string"
                   },
                   "entrypoint": {
-                    "description": "Command used to start the process. If omitted, defaults to an empty string.",
+                    "description": "Command used to start the process. If omitted, defaults to an empty string. Cannot contain the sequence \"{{\".",
                     "example": "npm start",
                     "maxLength": 1024,
                     "type": "string"
@@ -25773,11 +25762,16 @@
                           {
                             "properties": {
                               "host": {
-                                "description": "Host name to connect to",
-                                "type": [
-                                  "string",
-                                  "null"
-                                ]
+                                "anyOf": [
+                                  {
+                                    "maxLength": 253,
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ],
+                                "description": "Host name to connect to. Must be a hostname or an IP address. Defaults to the pod IP when omitted."
                               },
                               "httpHeaders": {
                                 "anyOf": [
@@ -25785,13 +25779,15 @@
                                     "items": {
                                       "properties": {
                                         "name": {
-                                          "description": "Header name",
+                                          "description": "Header name. Must be a valid HTTP header name.",
                                           "example": "X-Custom-Header",
+                                          "pattern": "^[\\w!#$%&'*+\\-.^`|~]+$",
                                           "type": "string"
                                         },
                                         "value": {
-                                          "description": "Header value",
+                                          "description": "Header value. May contain only printable ASCII characters, spaces and tabs.",
                                           "example": "custom-value",
+                                          "pattern": "^[\\t\\x20-\\x7e]*$",
                                           "type": "string"
                                         }
                                       },
@@ -25810,12 +25806,17 @@
                                 "description": "Custom headers to set in the request"
                               },
                               "path": {
-                                "description": "Path to access on the HTTP server",
-                                "example": "/health",
-                                "type": [
-                                  "string",
-                                  "null"
-                                ]
+                                "anyOf": [
+                                  {
+                                    "pattern": "^[\\w\\-.~!$&'()*+,;=:@%/?[\\]]*$",
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ],
+                                "description": "Path to access on the HTTP server. May contain only URL path and query characters (letters, digits and `-._~!$&'()*+,;=:@%/?[]`).",
+                                "example": "/health"
                               },
                               "port": {
                                 "anyOf": [
@@ -25945,11 +25946,16 @@
                           {
                             "properties": {
                               "host": {
-                                "description": "Host name to connect to",
-                                "type": [
-                                  "string",
-                                  "null"
-                                ]
+                                "anyOf": [
+                                  {
+                                    "maxLength": 253,
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ],
+                                "description": "Host name to connect to. Must be a hostname or an IP address. Defaults to the pod IP when omitted."
                               },
                               "httpHeaders": {
                                 "anyOf": [
@@ -25957,13 +25963,15 @@
                                     "items": {
                                       "properties": {
                                         "name": {
-                                          "description": "Header name",
+                                          "description": "Header name. Must be a valid HTTP header name.",
                                           "example": "X-Custom-Header",
+                                          "pattern": "^[\\w!#$%&'*+\\-.^`|~]+$",
                                           "type": "string"
                                         },
                                         "value": {
-                                          "description": "Header value",
+                                          "description": "Header value. May contain only printable ASCII characters, spaces and tabs.",
                                           "example": "custom-value",
+                                          "pattern": "^[\\t\\x20-\\x7e]*$",
                                           "type": "string"
                                         }
                                       },
@@ -25982,12 +25990,17 @@
                                 "description": "Custom headers to set in the request"
                               },
                               "path": {
-                                "description": "Path to access on the HTTP server",
-                                "example": "/health",
-                                "type": [
-                                  "string",
-                                  "null"
-                                ]
+                                "anyOf": [
+                                  {
+                                    "pattern": "^[\\w\\-.~!$&'()*+,;=:@%/?[\\]]*$",
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ],
+                                "description": "Path to access on the HTTP server. May contain only URL path and query characters (letters, digits and `-._~!$&'()*+,;=:@%/?[]`).",
+                                "example": "/health"
                               },
                               "port": {
                                 "anyOf": [
@@ -26378,7 +26391,6 @@
                     "entrypoint": {
                       "description": "Command used to start the process",
                       "example": "npm start",
-                      "maxLength": 1024,
                       "type": "string"
                     },
                     "id": {
@@ -27999,7 +28011,6 @@
                     "entrypoint": {
                       "description": "Command used to start the process",
                       "example": "npm start",
-                      "maxLength": 1024,
                       "type": "string"
                     },
                     "id": {
@@ -29109,7 +29120,7 @@
                     "type": "string"
                   },
                   "entrypoint": {
-                    "description": "Command used to start the process",
+                    "description": "Command used to start the process. Cannot contain the sequence \"{{\".",
                     "example": "npm start",
                     "maxLength": 1024,
                     "type": "string"
@@ -29161,11 +29172,16 @@
                           {
                             "properties": {
                               "host": {
-                                "description": "Host name to connect to",
-                                "type": [
-                                  "string",
-                                  "null"
-                                ]
+                                "anyOf": [
+                                  {
+                                    "maxLength": 253,
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ],
+                                "description": "Host name to connect to. Must be a hostname or an IP address. Defaults to the pod IP when omitted."
                               },
                               "httpHeaders": {
                                 "anyOf": [
@@ -29173,13 +29189,15 @@
                                     "items": {
                                       "properties": {
                                         "name": {
-                                          "description": "Header name",
+                                          "description": "Header name. Must be a valid HTTP header name.",
                                           "example": "X-Custom-Header",
+                                          "pattern": "^[\\w!#$%&'*+\\-.^`|~]+$",
                                           "type": "string"
                                         },
                                         "value": {
-                                          "description": "Header value",
+                                          "description": "Header value. May contain only printable ASCII characters, spaces and tabs.",
                                           "example": "custom-value",
+                                          "pattern": "^[\\t\\x20-\\x7e]*$",
                                           "type": "string"
                                         }
                                       },
@@ -29198,12 +29216,17 @@
                                 "description": "Custom headers to set in the request"
                               },
                               "path": {
-                                "description": "Path to access on the HTTP server",
-                                "example": "/health",
-                                "type": [
-                                  "string",
-                                  "null"
-                                ]
+                                "anyOf": [
+                                  {
+                                    "pattern": "^[\\w\\-.~!$&'()*+,;=:@%/?[\\]]*$",
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ],
+                                "description": "Path to access on the HTTP server. May contain only URL path and query characters (letters, digits and `-._~!$&'()*+,;=:@%/?[]`).",
+                                "example": "/health"
                               },
                               "port": {
                                 "anyOf": [
@@ -29333,11 +29356,16 @@
                           {
                             "properties": {
                               "host": {
-                                "description": "Host name to connect to",
-                                "type": [
-                                  "string",
-                                  "null"
-                                ]
+                                "anyOf": [
+                                  {
+                                    "maxLength": 253,
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ],
+                                "description": "Host name to connect to. Must be a hostname or an IP address. Defaults to the pod IP when omitted."
                               },
                               "httpHeaders": {
                                 "anyOf": [
@@ -29345,13 +29373,15 @@
                                     "items": {
                                       "properties": {
                                         "name": {
-                                          "description": "Header name",
+                                          "description": "Header name. Must be a valid HTTP header name.",
                                           "example": "X-Custom-Header",
+                                          "pattern": "^[\\w!#$%&'*+\\-.^`|~]+$",
                                           "type": "string"
                                         },
                                         "value": {
-                                          "description": "Header value",
+                                          "description": "Header value. May contain only printable ASCII characters, spaces and tabs.",
                                           "example": "custom-value",
+                                          "pattern": "^[\\t\\x20-\\x7e]*$",
                                           "type": "string"
                                         }
                                       },
@@ -29370,12 +29400,17 @@
                                 "description": "Custom headers to set in the request"
                               },
                               "path": {
-                                "description": "Path to access on the HTTP server",
-                                "example": "/health",
-                                "type": [
-                                  "string",
-                                  "null"
-                                ]
+                                "anyOf": [
+                                  {
+                                    "pattern": "^[\\w\\-.~!$&'()*+,;=:@%/?[\\]]*$",
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ],
+                                "description": "Path to access on the HTTP server. May contain only URL path and query characters (letters, digits and `-._~!$&'()*+,;=:@%/?[]`).",
+                                "example": "/health"
                               },
                               "port": {
                                 "anyOf": [
@@ -29749,7 +29784,6 @@
                     "entrypoint": {
                       "description": "Command used to start the process",
                       "example": "npm start",
-                      "maxLength": 1024,
                       "type": "string"
                     },
                     "id": {
@@ -37359,14 +37393,14 @@
                             "type": "string"
                           },
                           "external_port": {
-                            "description": "Public port to connect to. The port can change once when the proxy moves behind the external proxy, so always read it together with `hostname` instead of storing it.",
+                            "description": "Public port to connect to, together with `hostname`",
                             "example": 51744,
                             "maximum": 9007199254740991,
                             "minimum": -9007199254740991,
                             "type": "integer"
                           },
                           "hostname": {
-                            "description": "Public hostname to connect to. The hostname can change once when the proxy moves behind the external proxy, so always read it together with `external_port` instead of storing it.",
+                            "description": "Public hostname to connect to, together with `external_port`",
                             "example": "my-app-1a2b3-x9k2q.ext.sevalla.app",
                             "type": "string"
                           },
@@ -37717,14 +37751,14 @@
                       "type": "string"
                     },
                     "external_port": {
-                      "description": "Public port to connect to. The port can change once when the proxy moves behind the external proxy, so always read it together with `hostname` instead of storing it.",
+                      "description": "Public port to connect to, together with `hostname`",
                       "example": 51744,
                       "maximum": 9007199254740991,
                       "minimum": -9007199254740991,
                       "type": "integer"
                     },
                     "hostname": {
-                      "description": "Public hostname to connect to. The hostname can change once when the proxy moves behind the external proxy, so always read it together with `external_port` instead of storing it.",
+                      "description": "Public hostname to connect to, together with `external_port`",
                       "example": "my-app-1a2b3-x9k2q.ext.sevalla.app",
                       "type": "string"
                     },
@@ -39923,7 +39957,7 @@
         ]
       },
       "get": {
-        "description": "Retrieve the full details of a database including connection hostnames, cluster information, and current status.",
+        "description": "Retrieve the full details of a database including connection hostnames, TLS settings with the CA certificate, cluster information, and current status.",
         "operationId": "getDatabaseV3",
         "parameters": [
           {
@@ -40151,6 +40185,19 @@
                       "description": "Storage allocation in megabytes",
                       "example": 10000
                     },
+                    "tls_ca_certificate": {
+                      "description": "PEM-encoded CA certificate that signed the database server certificate. Give it to your clients to verify the server (for example `sslrootcert` with `sslmode=verify-full` in PostgreSQL). Null while TLS is off.",
+                      "example": "-----BEGIN CERTIFICATE-----\nMIIB...\n-----END CERTIFICATE-----\n",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "tls_enabled": {
+                      "description": "Whether the database accepts TLS connections. PostgreSQL, MySQL and MariaDB serve TLS on their usual port next to plaintext, inside the cluster and through the external connection. Redis and Valkey serve TLS on port 6380 next to plaintext 6379 inside the cluster, and their external connection requires TLS (`rediss://`). Always true for databases created on OCI clusters.",
+                      "example": true,
+                      "type": "boolean"
+                    },
                     "type": {
                       "description": "Database engine type. `postgresql` - PostgreSQL. `mariadb` - MariaDB. `mysql` - MySQL. `redis` - Redis. `valkey` - Valkey.",
                       "enum": [
@@ -40201,6 +40248,8 @@
                     "internal_port",
                     "external_hostname",
                     "external_port",
+                    "tls_enabled",
+                    "tls_ca_certificate",
                     "created_at",
                     "updated_at"
                   ],
@@ -41597,7 +41646,7 @@
                     "type": "string"
                   },
                   "prefix": {
-                    "description": "Object key prefix for the dump files inside the bucket. Defaults to a per-database prefix.",
+                    "description": "Object key prefix for the dump files inside the bucket. Defaults to a per-database prefix. Trailing slashes are removed, and a prefix made only of slashes uses the default. \".\" and \"..\" path segments are not allowed.",
                     "example": "my-app/db-backups",
                     "maxLength": 512,
                     "minLength": 1,
@@ -42467,7 +42516,7 @@
                         "type": "null"
                       }
                     ],
-                    "description": "New object key prefix for the dump files inside the bucket. Pass null to switch back to the default per-database prefix. Existing backups under the old prefix become invisible to the backup list.",
+                    "description": "New object key prefix for the dump files inside the bucket. Pass null to switch back to the default per-database prefix. Trailing slashes are removed, and a prefix made only of slashes uses the default. \".\" and \"..\" path segments are not allowed. Existing backups under the old prefix become invisible to the backup list.",
                     "example": "my-app/db-backups"
                   },
                   "region": {
@@ -45915,7 +45964,7 @@
     },
     "/databases/{id}/external-connection/toggle": {
       "post": {
-        "description": "Toggle external network access for a database. When enabled, the database becomes accessible from outside the cluster via the external hostname and port. When disabled, the database is only accessible internally. The operation is asynchronous - the database status will reflect the progress.",
+        "description": "Toggle external network access for a database. When enabled, the database becomes accessible from outside the cluster via the external hostname and port. When disabled, the database is only accessible internally. On Redis and Valkey with TLS on (`tls_enabled`), the external connection requires TLS: connect with `rediss://` and verify the server with `tls_ca_certificate`. The operation is asynchronous - the database status will reflect the progress.",
         "operationId": "toggleDatabaseExternalConnectionV3",
         "parameters": [
           {
@@ -50989,6 +51038,326 @@
         ]
       }
     },
+    "/databases/{id}/tls/enable": {
+      "post": {
+        "description": "Turn on TLS for a database on an OCI cluster that was created without it. Databases created on OCI clusters have TLS from the start. Plaintext connections keep working inside the cluster and, for PostgreSQL, MySQL and MariaDB, through the external connection, so existing applications are not affected. On Redis and Valkey the external connection then requires TLS: external clients have to switch to `rediss://` with the CA certificate. TLS cannot be turned off again. The operation is asynchronous and restarts the database once: the status is `updating` until it is back to `ready`, and then `tls_enabled` is true and `tls_ca_certificate` holds the CA certificate on the Get Database endpoint. Calling it on a database with TLS already on changes nothing. Allowed only when the database status is `ready` and the database is not suspended.",
+        "operationId": "enableDatabaseTlsV3",
+        "parameters": [
+          {
+            "description": "Database identifier",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "example": "fb5e5168-4281-4bec-94c5-0d1584e9e657",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "message": {
+                      "description": "Confirmation message",
+                      "example": "Database TLS enabling started",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "message"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Default Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "code": {
+                          "description": "Error tracking code for support reference",
+                          "example": "err-abc-123",
+                          "type": "string"
+                        },
+                        "message": {
+                          "description": "Additional error details or instructions",
+                          "example": "If you need assistance, please contact support and provide this error code.",
+                          "type": "string"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "message": {
+                      "description": "Error message",
+                      "example": "Bad request",
+                      "type": "string"
+                    },
+                    "status": {
+                      "description": "HTTP status code",
+                      "example": 400,
+                      "maximum": 9007199254740991,
+                      "minimum": -9007199254740991,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "message",
+                    "status"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Default Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "code": {
+                          "description": "Error tracking code for support reference",
+                          "example": "err-abc-123",
+                          "type": "string"
+                        },
+                        "message": {
+                          "description": "Additional error details or instructions",
+                          "example": "If you need assistance, please contact support and provide this error code.",
+                          "type": "string"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "message": {
+                      "description": "Error message",
+                      "example": "Unauthorized",
+                      "type": "string"
+                    },
+                    "status": {
+                      "description": "HTTP status code",
+                      "example": 401,
+                      "maximum": 9007199254740991,
+                      "minimum": -9007199254740991,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "message",
+                    "status"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Default Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "code": {
+                          "description": "Error tracking code for support reference",
+                          "example": "err-abc-123",
+                          "type": "string"
+                        },
+                        "message": {
+                          "description": "Additional error details or instructions",
+                          "example": "If you need assistance, please contact support and provide this error code.",
+                          "type": "string"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "message": {
+                      "description": "Error message",
+                      "example": "This API key is missing the <RESOURCE>:<ACTION> permission. Grant it to the key or use a key that has it.",
+                      "type": "string"
+                    },
+                    "status": {
+                      "description": "HTTP status code",
+                      "example": 403,
+                      "maximum": 9007199254740991,
+                      "minimum": -9007199254740991,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "message",
+                    "status"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Default Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "code": {
+                          "description": "Error tracking code for support reference",
+                          "example": "err-abc-123",
+                          "type": "string"
+                        },
+                        "message": {
+                          "description": "Additional error details or instructions",
+                          "example": "If you need assistance, please contact support and provide this error code.",
+                          "type": "string"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "message": {
+                      "description": "Error message",
+                      "example": "Not found",
+                      "type": "string"
+                    },
+                    "status": {
+                      "description": "HTTP status code",
+                      "example": 404,
+                      "maximum": 9007199254740991,
+                      "minimum": -9007199254740991,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "message",
+                    "status"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Default Response"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "code": {
+                          "description": "Error tracking code for support reference",
+                          "example": "err-abc-123",
+                          "type": "string"
+                        },
+                        "message": {
+                          "description": "Additional error details or instructions",
+                          "example": "If you need assistance, please contact support and provide this error code.",
+                          "type": "string"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "message": {
+                      "description": "Error message",
+                      "example": "Too many requests",
+                      "type": "string"
+                    },
+                    "status": {
+                      "description": "HTTP status code",
+                      "example": 429,
+                      "maximum": 9007199254740991,
+                      "minimum": -9007199254740991,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "message",
+                    "status"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Default Response"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "code": {
+                          "description": "Error tracking code for support reference",
+                          "example": "err-abc-123",
+                          "type": "string"
+                        },
+                        "message": {
+                          "description": "Additional error details or instructions",
+                          "example": "If you need assistance, please contact support and provide this error code.",
+                          "type": "string"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "message": {
+                      "description": "Error message",
+                      "example": "Internal Server Error",
+                      "type": "string"
+                    },
+                    "status": {
+                      "description": "HTTP status code",
+                      "example": 500,
+                      "maximum": 9007199254740991,
+                      "minimum": -9007199254740991,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "message",
+                    "status"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Default Response"
+          }
+        },
+        "summary": "Enable database TLS",
+        "tags": [
+          "Databases"
+        ],
+        "x-required-permissions": [
+          "DATABASE:UPDATE"
+        ]
+      }
+    },
     "/docker-registries": {
       "get": {
         "description": "Retrieve a paginated list of all Docker registry credentials in the company. Credentials are used to authenticate with private Docker registries when pulling images for deployments. The secret field is never included in responses.",
@@ -51334,8 +51703,6 @@
                     "company_id": {
                       "description": "Identifier of the company that owns this credential",
                       "example": "fb5e5168-4281-4bec-94c5-0d1584e9e657",
-                      "format": "uuid",
-                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
                       "type": "string"
                     },
                     "created_at": {
@@ -51935,8 +52302,6 @@
                     "company_id": {
                       "description": "Identifier of the company that owns this credential",
                       "example": "fb5e5168-4281-4bec-94c5-0d1584e9e657",
-                      "format": "uuid",
-                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
                       "type": "string"
                     },
                     "created_at": {
@@ -52262,8 +52627,6 @@
                     "company_id": {
                       "description": "Identifier of the company that owns this credential",
                       "example": "fb5e5168-4281-4bec-94c5-0d1584e9e657",
-                      "format": "uuid",
-                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
                       "type": "string"
                     },
                     "created_at": {
@@ -56218,7 +56581,7 @@
                     "type": "string"
                   },
                   "domain_name": {
-                    "description": "The custom domain name to add to the load balancer",
+                    "description": "The custom domain name to add to the load balancer. A leading `*.` adds a wildcard domain: `*.example.com` is saved as `example.com` with `is_wildcard` set to true.",
                     "example": "lb.example.com",
                     "minLength": 1,
                     "type": "string"
@@ -58880,7 +59243,7 @@
                     "type": "string"
                   },
                   "jurisdiction": {
-                    "description": "Data residency jurisdiction. Defaults to `default` (no restriction). `default` - no jurisdiction restriction. `eu` - data stored exclusively in the EU. `fedramp` - FedRAMP-compliant storage.",
+                    "description": "Data residency jurisdiction. Defaults to `default` (no restriction). `default` - no jurisdiction restriction. `eu` - data stored exclusively in the EU. `fedramp` - FedRAMP-compliant storage. It cannot be changed after the bucket is created. Buckets in `eu` or `fedramp` are only reachable through the S3 endpoint of their jurisdiction, which the response returns in `endpoint`.",
                     "enum": [
                       "default",
                       "eu",
@@ -58890,7 +59253,7 @@
                     "type": "string"
                   },
                   "location": {
-                    "description": "Geographic hint for where most data access occurs. Defaults to `enam` (Eastern North America). `apac` - Asia-Pacific. `eeur` - Eastern Europe. `enam` - Eastern North America. `oc` - Oceania. `weur` - Western Europe. `wnam` - Western North America.",
+                    "description": "Geographic hint for where most data access occurs. Defaults to `enam` (Eastern North America). `apac` - Asia-Pacific. `eeur` - Eastern Europe. `enam` - Eastern North America. `oc` - Oceania. `weur` - Western Europe. `wnam` - Western North America. Ignored when `jurisdiction` is `eu` or `fedramp`, because the jurisdiction decides where the data is stored.",
                     "enum": [
                       "apac",
                       "eeur",
@@ -63345,6 +63708,11 @@
                         "null"
                       ]
                     },
+                    "bucket_name": {
+                      "description": "Name of the R2 bucket in Cloudflare",
+                      "example": "my-bucket",
+                      "type": "string"
+                    },
                     "company_id": {
                       "description": "Identifier of the company that owns this object storage bucket",
                       "example": "fb5e5168-4281-4bec-94c5-0d1584e9e657",
@@ -63489,6 +63857,7 @@
                     "project_id",
                     "name",
                     "display_name",
+                    "bucket_name",
                     "location",
                     "jurisdiction",
                     "status",
@@ -64239,8 +64608,6 @@
                     "company_id": {
                       "description": "Identifier of the company that owns this pipeline",
                       "example": "fb5e5168-4281-4bec-94c5-0d1584e9e657",
-                      "format": "uuid",
-                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
                       "type": "string"
                     },
                     "created_at": {
@@ -64890,8 +65257,6 @@
                     "company_id": {
                       "description": "Identifier of the company that owns this pipeline",
                       "example": "fb5e5168-4281-4bec-94c5-0d1584e9e657",
-                      "format": "uuid",
-                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
                       "type": "string"
                     },
                     "created_at": {
@@ -65344,8 +65709,6 @@
                     "company_id": {
                       "description": "Identifier of the company that owns this pipeline",
                       "example": "fb5e5168-4281-4bec-94c5-0d1584e9e657",
-                      "format": "uuid",
-                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
                       "type": "string"
                     },
                     "created_at": {
@@ -65899,7 +66262,7 @@
                               "type": "string"
                             },
                             "entrypoint": {
-                              "description": "Command used to start the process. If omitted, defaults to an empty string.",
+                              "description": "Command used to start the process. If omitted, defaults to an empty string. Cannot contain the sequence \"{{\".",
                               "example": "npm start",
                               "maxLength": 1024,
                               "type": "string"
@@ -65915,31 +66278,9 @@
                               "type": "string"
                             },
                             "liveness_probe": {
-                              "description": "Kubernetes liveness probe configuration. Only applicable to web processes.",
+                              "additionalProperties": false,
+                              "description": "Kubernetes liveness probe configuration. HTTP GET (`httpGet`) and TCP socket (`tcpSocket`) probes are supported, exec probes are rejected. Only applicable to web processes.",
                               "properties": {
-                                "exec": {
-                                  "anyOf": [
-                                    {
-                                      "properties": {
-                                        "command": {
-                                          "description": "Command to execute inside the container",
-                                          "items": {
-                                            "type": "string"
-                                          },
-                                          "type": "array"
-                                        }
-                                      },
-                                      "required": [
-                                        "command"
-                                      ],
-                                      "type": "object"
-                                    },
-                                    {
-                                      "type": "null"
-                                    }
-                                  ],
-                                  "description": "Exec-based probe - runs a command inside the container"
-                                },
                                 "failureThreshold": {
                                   "anyOf": [
                                     {
@@ -65959,11 +66300,16 @@
                                     {
                                       "properties": {
                                         "host": {
-                                          "description": "Host name to connect to",
-                                          "type": [
-                                            "string",
-                                            "null"
-                                          ]
+                                          "anyOf": [
+                                            {
+                                              "maxLength": 253,
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ],
+                                          "description": "Host name to connect to. Must be a hostname or an IP address. Defaults to the pod IP when omitted."
                                         },
                                         "httpHeaders": {
                                           "anyOf": [
@@ -65971,13 +66317,15 @@
                                               "items": {
                                                 "properties": {
                                                   "name": {
-                                                    "description": "Header name",
+                                                    "description": "Header name. Must be a valid HTTP header name.",
                                                     "example": "X-Custom-Header",
+                                                    "pattern": "^[\\w!#$%&'*+\\-.^`|~]+$",
                                                     "type": "string"
                                                   },
                                                   "value": {
-                                                    "description": "Header value",
+                                                    "description": "Header value. May contain only printable ASCII characters, spaces and tabs.",
                                                     "example": "custom-value",
+                                                    "pattern": "^[\\t\\x20-\\x7e]*$",
                                                     "type": "string"
                                                   }
                                                 },
@@ -65996,12 +66344,17 @@
                                           "description": "Custom headers to set in the request"
                                         },
                                         "path": {
-                                          "description": "Path to access on the HTTP server",
-                                          "example": "/health",
-                                          "type": [
-                                            "string",
-                                            "null"
-                                          ]
+                                          "anyOf": [
+                                            {
+                                              "pattern": "^[\\w\\-.~!$&'()*+,;=:@%/?[\\]]*$",
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ],
+                                          "description": "Path to access on the HTTP server. May contain only URL path and query characters (letters, digits and `-._~!$&'()*+,;=:@%/?[]`).",
+                                          "example": "/health"
                                         },
                                         "port": {
                                           "anyOf": [
@@ -66089,11 +66442,16 @@
                                     {
                                       "properties": {
                                         "host": {
-                                          "description": "Host name to connect to",
-                                          "type": [
-                                            "string",
-                                            "null"
-                                          ]
+                                          "anyOf": [
+                                            {
+                                              "maxLength": 253,
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ],
+                                          "description": "Host name to connect to. Must be a hostname or an IP address. Defaults to the pod IP when omitted."
                                         },
                                         "port": {
                                           "description": "Port number to connect to",
@@ -66139,31 +66497,9 @@
                               "type": "integer"
                             },
                             "readiness_probe": {
-                              "description": "Kubernetes readiness probe configuration. Only applicable to web processes.",
+                              "additionalProperties": false,
+                              "description": "Kubernetes readiness probe configuration. HTTP GET (`httpGet`) and TCP socket (`tcpSocket`) probes are supported, exec probes are rejected. Only applicable to web processes.",
                               "properties": {
-                                "exec": {
-                                  "anyOf": [
-                                    {
-                                      "properties": {
-                                        "command": {
-                                          "description": "Command to execute inside the container",
-                                          "items": {
-                                            "type": "string"
-                                          },
-                                          "type": "array"
-                                        }
-                                      },
-                                      "required": [
-                                        "command"
-                                      ],
-                                      "type": "object"
-                                    },
-                                    {
-                                      "type": "null"
-                                    }
-                                  ],
-                                  "description": "Exec-based probe - runs a command inside the container"
-                                },
                                 "failureThreshold": {
                                   "anyOf": [
                                     {
@@ -66183,11 +66519,16 @@
                                     {
                                       "properties": {
                                         "host": {
-                                          "description": "Host name to connect to",
-                                          "type": [
-                                            "string",
-                                            "null"
-                                          ]
+                                          "anyOf": [
+                                            {
+                                              "maxLength": 253,
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ],
+                                          "description": "Host name to connect to. Must be a hostname or an IP address. Defaults to the pod IP when omitted."
                                         },
                                         "httpHeaders": {
                                           "anyOf": [
@@ -66195,13 +66536,15 @@
                                               "items": {
                                                 "properties": {
                                                   "name": {
-                                                    "description": "Header name",
+                                                    "description": "Header name. Must be a valid HTTP header name.",
                                                     "example": "X-Custom-Header",
+                                                    "pattern": "^[\\w!#$%&'*+\\-.^`|~]+$",
                                                     "type": "string"
                                                   },
                                                   "value": {
-                                                    "description": "Header value",
+                                                    "description": "Header value. May contain only printable ASCII characters, spaces and tabs.",
                                                     "example": "custom-value",
+                                                    "pattern": "^[\\t\\x20-\\x7e]*$",
                                                     "type": "string"
                                                   }
                                                 },
@@ -66220,12 +66563,17 @@
                                           "description": "Custom headers to set in the request"
                                         },
                                         "path": {
-                                          "description": "Path to access on the HTTP server",
-                                          "example": "/health",
-                                          "type": [
-                                            "string",
-                                            "null"
-                                          ]
+                                          "anyOf": [
+                                            {
+                                              "pattern": "^[\\w\\-.~!$&'()*+,;=:@%/?[\\]]*$",
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ],
+                                          "description": "Path to access on the HTTP server. May contain only URL path and query characters (letters, digits and `-._~!$&'()*+,;=:@%/?[]`).",
+                                          "example": "/health"
                                         },
                                         "port": {
                                           "anyOf": [
@@ -66313,11 +66661,16 @@
                                     {
                                       "properties": {
                                         "host": {
-                                          "description": "Host name to connect to",
-                                          "type": [
-                                            "string",
-                                            "null"
-                                          ]
+                                          "anyOf": [
+                                            {
+                                              "maxLength": 253,
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ],
+                                          "description": "Host name to connect to. Must be a hostname or an IP address. Defaults to the pod IP when omitted."
                                         },
                                         "port": {
                                           "description": "Port number to connect to",
@@ -67719,7 +68072,7 @@
                               "type": "string"
                             },
                             "entrypoint": {
-                              "description": "Command used to start the process. If omitted, defaults to an empty string.",
+                              "description": "Command used to start the process. If omitted, defaults to an empty string. Cannot contain the sequence \"{{\".",
                               "example": "npm start",
                               "maxLength": 1024,
                               "type": "string"
@@ -67735,31 +68088,9 @@
                               "type": "string"
                             },
                             "liveness_probe": {
-                              "description": "Kubernetes liveness probe configuration. Only applicable to web processes.",
+                              "additionalProperties": false,
+                              "description": "Kubernetes liveness probe configuration. HTTP GET (`httpGet`) and TCP socket (`tcpSocket`) probes are supported, exec probes are rejected. Only applicable to web processes.",
                               "properties": {
-                                "exec": {
-                                  "anyOf": [
-                                    {
-                                      "properties": {
-                                        "command": {
-                                          "description": "Command to execute inside the container",
-                                          "items": {
-                                            "type": "string"
-                                          },
-                                          "type": "array"
-                                        }
-                                      },
-                                      "required": [
-                                        "command"
-                                      ],
-                                      "type": "object"
-                                    },
-                                    {
-                                      "type": "null"
-                                    }
-                                  ],
-                                  "description": "Exec-based probe - runs a command inside the container"
-                                },
                                 "failureThreshold": {
                                   "anyOf": [
                                     {
@@ -67779,11 +68110,16 @@
                                     {
                                       "properties": {
                                         "host": {
-                                          "description": "Host name to connect to",
-                                          "type": [
-                                            "string",
-                                            "null"
-                                          ]
+                                          "anyOf": [
+                                            {
+                                              "maxLength": 253,
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ],
+                                          "description": "Host name to connect to. Must be a hostname or an IP address. Defaults to the pod IP when omitted."
                                         },
                                         "httpHeaders": {
                                           "anyOf": [
@@ -67791,13 +68127,15 @@
                                               "items": {
                                                 "properties": {
                                                   "name": {
-                                                    "description": "Header name",
+                                                    "description": "Header name. Must be a valid HTTP header name.",
                                                     "example": "X-Custom-Header",
+                                                    "pattern": "^[\\w!#$%&'*+\\-.^`|~]+$",
                                                     "type": "string"
                                                   },
                                                   "value": {
-                                                    "description": "Header value",
+                                                    "description": "Header value. May contain only printable ASCII characters, spaces and tabs.",
                                                     "example": "custom-value",
+                                                    "pattern": "^[\\t\\x20-\\x7e]*$",
                                                     "type": "string"
                                                   }
                                                 },
@@ -67816,12 +68154,17 @@
                                           "description": "Custom headers to set in the request"
                                         },
                                         "path": {
-                                          "description": "Path to access on the HTTP server",
-                                          "example": "/health",
-                                          "type": [
-                                            "string",
-                                            "null"
-                                          ]
+                                          "anyOf": [
+                                            {
+                                              "pattern": "^[\\w\\-.~!$&'()*+,;=:@%/?[\\]]*$",
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ],
+                                          "description": "Path to access on the HTTP server. May contain only URL path and query characters (letters, digits and `-._~!$&'()*+,;=:@%/?[]`).",
+                                          "example": "/health"
                                         },
                                         "port": {
                                           "anyOf": [
@@ -67909,11 +68252,16 @@
                                     {
                                       "properties": {
                                         "host": {
-                                          "description": "Host name to connect to",
-                                          "type": [
-                                            "string",
-                                            "null"
-                                          ]
+                                          "anyOf": [
+                                            {
+                                              "maxLength": 253,
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ],
+                                          "description": "Host name to connect to. Must be a hostname or an IP address. Defaults to the pod IP when omitted."
                                         },
                                         "port": {
                                           "description": "Port number to connect to",
@@ -67959,31 +68307,9 @@
                               "type": "integer"
                             },
                             "readiness_probe": {
-                              "description": "Kubernetes readiness probe configuration. Only applicable to web processes.",
+                              "additionalProperties": false,
+                              "description": "Kubernetes readiness probe configuration. HTTP GET (`httpGet`) and TCP socket (`tcpSocket`) probes are supported, exec probes are rejected. Only applicable to web processes.",
                               "properties": {
-                                "exec": {
-                                  "anyOf": [
-                                    {
-                                      "properties": {
-                                        "command": {
-                                          "description": "Command to execute inside the container",
-                                          "items": {
-                                            "type": "string"
-                                          },
-                                          "type": "array"
-                                        }
-                                      },
-                                      "required": [
-                                        "command"
-                                      ],
-                                      "type": "object"
-                                    },
-                                    {
-                                      "type": "null"
-                                    }
-                                  ],
-                                  "description": "Exec-based probe - runs a command inside the container"
-                                },
                                 "failureThreshold": {
                                   "anyOf": [
                                     {
@@ -68003,11 +68329,16 @@
                                     {
                                       "properties": {
                                         "host": {
-                                          "description": "Host name to connect to",
-                                          "type": [
-                                            "string",
-                                            "null"
-                                          ]
+                                          "anyOf": [
+                                            {
+                                              "maxLength": 253,
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ],
+                                          "description": "Host name to connect to. Must be a hostname or an IP address. Defaults to the pod IP when omitted."
                                         },
                                         "httpHeaders": {
                                           "anyOf": [
@@ -68015,13 +68346,15 @@
                                               "items": {
                                                 "properties": {
                                                   "name": {
-                                                    "description": "Header name",
+                                                    "description": "Header name. Must be a valid HTTP header name.",
                                                     "example": "X-Custom-Header",
+                                                    "pattern": "^[\\w!#$%&'*+\\-.^`|~]+$",
                                                     "type": "string"
                                                   },
                                                   "value": {
-                                                    "description": "Header value",
+                                                    "description": "Header value. May contain only printable ASCII characters, spaces and tabs.",
                                                     "example": "custom-value",
+                                                    "pattern": "^[\\t\\x20-\\x7e]*$",
                                                     "type": "string"
                                                   }
                                                 },
@@ -68040,12 +68373,17 @@
                                           "description": "Custom headers to set in the request"
                                         },
                                         "path": {
-                                          "description": "Path to access on the HTTP server",
-                                          "example": "/health",
-                                          "type": [
-                                            "string",
-                                            "null"
-                                          ]
+                                          "anyOf": [
+                                            {
+                                              "pattern": "^[\\w\\-.~!$&'()*+,;=:@%/?[\\]]*$",
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ],
+                                          "description": "Path to access on the HTTP server. May contain only URL path and query characters (letters, digits and `-._~!$&'()*+,;=:@%/?[]`).",
+                                          "example": "/health"
                                         },
                                         "port": {
                                           "anyOf": [
@@ -68133,11 +68471,16 @@
                                     {
                                       "properties": {
                                         "host": {
-                                          "description": "Host name to connect to",
-                                          "type": [
-                                            "string",
-                                            "null"
-                                          ]
+                                          "anyOf": [
+                                            {
+                                              "maxLength": 253,
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ],
+                                          "description": "Host name to connect to. Must be a hostname or an IP address. Defaults to the pod IP when omitted."
                                         },
                                         "port": {
                                           "description": "Port number to connect to",
@@ -79467,7 +79810,7 @@
                     "type": "string"
                   },
                   "domain_name": {
-                    "description": "The custom domain name to add to the static site",
+                    "description": "The custom domain name to add to the static site. A leading `*.` adds a wildcard domain: `*.example.com` is saved as `example.com` with `is_wildcard` set to true.",
                     "example": "site.example.com",
                     "minLength": 1,
                     "type": "string"
@@ -90470,8 +90813,6 @@
                           "company_id": {
                             "description": "Identifier of the company that owns this webhook",
                             "example": "fb5e5168-4281-4bec-94c5-0d1584e9e657",
-                            "format": "uuid",
-                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
                             "type": "string"
                           },
                           "created_at": {
@@ -90843,8 +91184,6 @@
                     "company_id": {
                       "description": "Identifier of the company that owns this webhook",
                       "example": "fb5e5168-4281-4bec-94c5-0d1584e9e657",
-                      "format": "uuid",
-                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
                       "type": "string"
                     },
                     "created_at": {
@@ -91509,8 +91848,6 @@
                     "company_id": {
                       "description": "Identifier of the company that owns this webhook",
                       "example": "fb5e5168-4281-4bec-94c5-0d1584e9e657",
-                      "format": "uuid",
-                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
                       "type": "string"
                     },
                     "created_at": {
@@ -91912,8 +92249,6 @@
                     "company_id": {
                       "description": "Identifier of the company that owns this webhook",
                       "example": "fb5e5168-4281-4bec-94c5-0d1584e9e657",
-                      "format": "uuid",
-                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
                       "type": "string"
                     },
                     "created_at": {
@@ -93172,8 +93507,6 @@
                     "company_id": {
                       "description": "Identifier of the company that owns this webhook",
                       "example": "fb5e5168-4281-4bec-94c5-0d1584e9e657",
-                      "format": "uuid",
-                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
                       "type": "string"
                     },
                     "created_at": {
@@ -93610,8 +93943,6 @@
                     "company_id": {
                       "description": "Identifier of the company that owns this webhook",
                       "example": "fb5e5168-4281-4bec-94c5-0d1584e9e657",
-                      "format": "uuid",
-                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
                       "type": "string"
                     },
                     "created_at": {
