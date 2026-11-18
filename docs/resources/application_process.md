@@ -190,9 +190,9 @@ Read-Only:
 
 Optional:
 
-- `host` (String) Hostname for the probe request.
+- `host` (String) Hostname or IP address for the probe request (at most 253 characters). Defaults to the pod IP.
 - `http_headers` (Attributes List) Custom HTTP headers for the probe request. (see [below for nested schema](#nestedatt--liveness_probe--http_get--http_headers))
-- `path` (String) Path to probe. Required: a probe without a path is not saved.
+- `path` (String) Path to probe. Required: a probe without a path is not saved. May contain only URL path and query characters.
 - `port` (Number) Port to probe (1-65535).
 - `scheme` (String) URI scheme. Valid values: `HTTP`, `HTTPS`.
 
@@ -201,8 +201,8 @@ Optional:
 
 Optional:
 
-- `name` (String) Header name. Required.
-- `value` (String) Header value. Required.
+- `name` (String) Header name. Required. Must be a valid HTTP header name.
+- `value` (String) Header value. Required. May contain only printable ASCII characters, spaces and tabs.
 
 
 
@@ -246,9 +246,9 @@ Read-Only:
 
 Optional:
 
-- `host` (String) Hostname for the probe request.
+- `host` (String) Hostname or IP address for the probe request (at most 253 characters). Defaults to the pod IP.
 - `http_headers` (Attributes List) Custom HTTP headers for the probe request. (see [below for nested schema](#nestedatt--readiness_probe--http_get--http_headers))
-- `path` (String) Path to probe. Required: a probe without a path is not saved.
+- `path` (String) Path to probe. Required: a probe without a path is not saved. May contain only URL path and query characters.
 - `port` (Number) Port to probe (1-65535).
 - `scheme` (String) URI scheme. Valid values: `HTTP`, `HTTPS`.
 
@@ -257,8 +257,8 @@ Optional:
 
 Optional:
 
-- `name` (String) Header name. Required.
-- `value` (String) Header value. Required.
+- `name` (String) Header name. Required. Must be a valid HTTP header name.
+- `value` (String) Header value. Required. May contain only printable ASCII characters, spaces and tabs.
 
 
 

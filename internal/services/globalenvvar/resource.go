@@ -10,6 +10,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
@@ -56,7 +57,7 @@ func (r *globalEnvVarResource) Schema(_ context.Context, _ resource.SchemaReques
 				},
 			},
 			"value": schema.StringAttribute{
-				Description: "The value of the environment variable (at most 32768 characters).",
+				Description: "The value of the environment variable (at most 32768 characters). The API never returns the value of a secret variable, so Terraform cannot detect changes made to it outside Terraform.",
 				Required:    true,
 				Sensitive:   true,
 				Validators:  []validator.String{stringvalidator.LengthAtMost(32768)},
@@ -72,6 +73,17 @@ func (r *globalEnvVarResource) Schema(_ context.Context, _ resource.SchemaReques
 				Optional:    true,
 				Computed:    true,
 				Default:     booldefault.StaticBool(true),
+			},
+			"is_secret": schema.BoolAttribute{
+				Description: "Whether the variable is secret: its value is never returned by the API or shown in the dashboard, but builds and processes still receive it. A secret cannot be made regular again, so changing this from `true` to `false` creates a new variable. Defaults to `false`.",
+				Optional:    true,
+				Computed:    true,
+				Default:     booldefault.StaticBool(false),
+				PlanModifiers: []planmodifier.Bool{
+					boolplanmodifier.RequiresReplaceIf(func(_ context.Context, req planmodifier.BoolRequest, resp *boolplanmodifier.RequiresReplaceIfFuncResponse) {
+						resp.RequiresReplace = req.StateValue.ValueBool() && !req.PlanValue.ValueBool()
+					}, "A secret variable cannot be made regular again.", "A secret variable cannot be made regular again."),
+				},
 			},
 			"created_at": schema.StringAttribute{
 				Description: "The timestamp when the global environment variable was created.",

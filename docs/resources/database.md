@@ -60,6 +60,7 @@ resource "sevalla_database" "redis" {
 - `db_user` (String) The database user (2-32 characters, not `root` or `postgres`). Defaults to the engine's default user. Redis and Valkey ignore it. Changing this creates a new database, except for Redis and Valkey.
 - `extensions` (Attributes) PostgreSQL extensions to enable (PostgreSQL only). They can only be set when the database is created and the API does not return them, so they are not checked for drift. Changing them creates a new database. After an import, the configured value is only recorded, with a warning: the API never returns it, so use `terraform apply -replace` if the database does not already use them. (see [below for nested schema](#nestedatt--extensions))
 - `project_id` (String) The ID of the project to group the database under. Removing it removes the database from the project.
+- `tls_enabled` (Boolean) Whether the database accepts TLS connections. Always `true` for databases created on OCI clusters. Only `true` can be set: it turns TLS on for an older OCI database, which restarts it the database once, and on Redis and Valkey the external connection then requires TLS. TLS cannot be turned off again.
 
 ### Read-Only
 
@@ -79,6 +80,7 @@ resource "sevalla_database" "redis" {
 - `resource_type_name` (String) The name of the resource type.
 - `status` (String) The current status of the database.
 - `storage_size` (Number) The storage size for the database in megabytes.
+- `tls_ca_certificate` (String) The PEM-encoded CA certificate that signed the database server certificate, for clients that verify the server. Null while TLS is off.
 - `updated_at` (String) The timestamp when the database was last updated.
 
 <a id="nestedatt--extensions"></a>

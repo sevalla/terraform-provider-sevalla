@@ -6,13 +6,15 @@ import (
 )
 
 type GlobalEnvironmentVariable struct {
-	ID          string `json:"id"`
-	Key         string `json:"key"`
-	Value       string `json:"value"`
-	IsRuntime   *bool  `json:"is_runtime"`
-	IsBuildtime *bool  `json:"is_buildtime"`
-	CreatedAt   string `json:"created_at"`
-	UpdatedAt   string `json:"updated_at"`
+	ID  string `json:"id"`
+	Key string `json:"key"`
+	// Value is null for a secret variable.
+	Value       *string `json:"value"`
+	IsRuntime   *bool   `json:"is_runtime"`
+	IsBuildtime *bool   `json:"is_buildtime"`
+	IsSecret    bool    `json:"is_secret"`
+	CreatedAt   string  `json:"created_at"`
+	UpdatedAt   string  `json:"updated_at"`
 }
 
 type CreateGlobalEnvVarRequest struct {
@@ -20,6 +22,7 @@ type CreateGlobalEnvVarRequest struct {
 	Value       string `json:"value"`
 	IsRuntime   *bool  `json:"is_runtime,omitempty"`
 	IsBuildtime *bool  `json:"is_buildtime,omitempty"`
+	IsSecret    bool   `json:"is_secret,omitempty"`
 }
 
 type UpdateGlobalEnvVarRequest struct {
@@ -27,6 +30,8 @@ type UpdateGlobalEnvVarRequest struct {
 	Value       *string `json:"value,omitempty"`
 	IsRuntime   *bool   `json:"is_runtime,omitempty"`
 	IsBuildtime *bool   `json:"is_buildtime,omitempty"`
+	// IsSecret can only be turned on: the API rejects false for a secret.
+	IsSecret bool `json:"is_secret,omitempty"`
 }
 
 func (c *SevallaClient) ListGlobalEnvVars(ctx context.Context) ([]GlobalEnvironmentVariable, error) {

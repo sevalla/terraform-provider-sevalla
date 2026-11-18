@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"regexp"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/int64validator"
@@ -319,6 +320,13 @@ func (r *applicationProcessResource) Schema(_ context.Context, _ resource.Schema
 	}
 }
 
+// Mirror the API's probe input patterns so mistakes fail at plan time.
+var (
+	probePathPattern   = regexp.MustCompile(`^[\w\-.~!$&'()*+,;=:@%/?\[\]]*$`)
+	headerNamePattern  = regexp.MustCompile("^[\\w!#$%&'*+\\-.^`|~]+$")
+	headerValuePattern = regexp.MustCompile(`^[\t\x20-\x7e]*$`)
+)
+
 func probeSchemaAttributes() map[string]schema.Attribute {
 	optionalInt := func(description string, min int64) schema.Int64Attribute {
 		return schema.Int64Attribute{
@@ -361,9 +369,10 @@ func probeSchemaAttributes() map[string]schema.Attribute {
 			},
 			Attributes: map[string]schema.Attribute{
 				"path": schema.StringAttribute{
-					Description: "Path to probe. Required: a probe without a path is not saved.",
+					Description: "Path to probe. Required: a probe without a path is not saved. May contain only URL path and query characters.",
 					Optional:    true,
 					Computed:    true,
+					Validators:  []validator.String{stringvalidator.RegexMatches(probePathPattern, "may contain only URL path and query characters (letters, digits and -._~!$&'()*+,;=:@%/?[])")},
 					PlanModifiers: []planmodifier.String{
 						stringplanmodifier.UseStateForUnknown(),
 					},
@@ -378,9 +387,10 @@ func probeSchemaAttributes() map[string]schema.Attribute {
 					},
 				},
 				"host": schema.StringAttribute{
-					Description: "Hostname for the probe request.",
+					Description: "Hostname or IP address for the probe request (at most 253 characters). Defaults to the pod IP.",
 					Optional:    true,
 					Computed:    true,
+					Validators:  []validator.String{stringvalidator.LengthAtMost(253)},
 					PlanModifiers: []planmodifier.String{
 						stringplanmodifier.UseStateForUnknown(),
 					},
@@ -408,14 +418,16 @@ func probeSchemaAttributes() map[string]schema.Attribute {
 						},
 						Attributes: map[string]schema.Attribute{
 							"name": schema.StringAttribute{
-								Description: "Header name. Required.",
+								Description: "Header name. Required. Must be a valid HTTP header name.",
 								Optional:    true,
 								Computed:    true,
+								Validators:  []validator.String{stringvalidator.RegexMatches(headerNamePattern, "must be a valid HTTP header name")},
 							},
 							"value": schema.StringAttribute{
-								Description: "Header value. Required.",
+								Description: "Header value. Required. May contain only printable ASCII characters, spaces and tabs.",
 								Optional:    true,
 								Computed:    true,
+								Validators:  []validator.String{stringvalidator.RegexMatches(headerValuePattern, "may contain only printable ASCII characters, spaces and tabs")},
 							},
 						},
 					},

@@ -12,6 +12,7 @@ type GlobalEnvVarResourceModel struct {
 	Value       types.String `tfsdk:"value"`
 	IsRuntime   types.Bool   `tfsdk:"is_runtime"`
 	IsBuildtime types.Bool   `tfsdk:"is_buildtime"`
+	IsSecret    types.Bool   `tfsdk:"is_secret"`
 	CreatedAt   types.String `tfsdk:"created_at"`
 	UpdatedAt   types.String `tfsdk:"updated_at"`
 }
@@ -20,7 +21,11 @@ type GlobalEnvVarResourceModel struct {
 func flattenGlobalEnvVar(e *client.GlobalEnvironmentVariable, model *GlobalEnvVarResourceModel) {
 	model.ID = types.StringValue(e.ID)
 	model.Key = types.StringValue(e.Key)
-	model.Value = types.StringValue(e.Value)
+	// A secret's value is withheld, so keep the one Terraform knows.
+	if e.Value != nil {
+		model.Value = types.StringValue(*e.Value)
+	}
+	model.IsSecret = types.BoolValue(e.IsSecret)
 	model.IsRuntime = boolOrTrue(e.IsRuntime)
 	model.IsBuildtime = boolOrTrue(e.IsBuildtime)
 	model.CreatedAt = types.StringValue(e.CreatedAt)
@@ -42,6 +47,7 @@ func buildCreateRequest(model *GlobalEnvVarResourceModel) *client.CreateGlobalEn
 		v := model.IsBuildtime.ValueBool()
 		req.IsBuildtime = &v
 	}
+	req.IsSecret = model.IsSecret.ValueBool()
 
 	return req
 }
@@ -61,6 +67,8 @@ func buildUpdateRequest(plan *GlobalEnvVarResourceModel) *client.UpdateGlobalEnv
 		v := plan.IsBuildtime.ValueBool()
 		req.IsBuildtime = &v
 	}
+	// Sending true for a secret is a no-op; false would be rejected.
+	req.IsSecret = plan.IsSecret.ValueBool()
 
 	return req
 }

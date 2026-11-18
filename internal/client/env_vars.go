@@ -8,11 +8,13 @@ import (
 // EnvironmentVariable covers both application variables (is_runtime,
 // is_buildtime) and static site variables (is_production, is_preview, branch).
 type EnvironmentVariable struct {
-	ID           string  `json:"id"`
-	Key          string  `json:"key"`
-	Value        string  `json:"value"`
+	ID  string `json:"id"`
+	Key string `json:"key"`
+	// Value is null for a secret application variable.
+	Value        *string `json:"value"`
 	IsRuntime    *bool   `json:"is_runtime"`
 	IsBuildtime  *bool   `json:"is_buildtime"`
+	IsSecret     bool    `json:"is_secret"`
 	IsProduction *bool   `json:"is_production"`
 	IsPreview    *bool   `json:"is_preview"`
 	Branch       *string `json:"branch"`
@@ -25,18 +27,21 @@ type CreateEnvironmentVariableRequest struct {
 	Value        string  `json:"value"`
 	IsRuntime    *bool   `json:"is_runtime,omitempty"`
 	IsBuildtime  *bool   `json:"is_buildtime,omitempty"`
+	IsSecret     bool    `json:"is_secret,omitempty"`
 	IsProduction *bool   `json:"is_production,omitempty"`
 	IsPreview    *bool   `json:"is_preview,omitempty"`
 	Branch       *string `json:"branch,omitempty"`
 }
 
 type UpdateEnvironmentVariableRequest struct {
-	Key          *string `json:"key,omitempty"`
-	Value        *string `json:"value,omitempty"`
-	IsRuntime    *bool   `json:"is_runtime,omitempty"`
-	IsBuildtime  *bool   `json:"is_buildtime,omitempty"`
-	IsProduction *bool   `json:"is_production,omitempty"`
-	IsPreview    *bool   `json:"is_preview,omitempty"`
+	Key         *string `json:"key,omitempty"`
+	Value       *string `json:"value,omitempty"`
+	IsRuntime   *bool   `json:"is_runtime,omitempty"`
+	IsBuildtime *bool   `json:"is_buildtime,omitempty"`
+	// IsSecret can only be turned on: the API rejects false for a secret.
+	IsSecret     bool  `json:"is_secret,omitempty"`
+	IsProduction *bool `json:"is_production,omitempty"`
+	IsPreview    *bool `json:"is_preview,omitempty"`
 	// Branch is only supported by static sites; Null() clears it.
 	Branch Nullable[string] `json:"branch,omitzero"`
 }

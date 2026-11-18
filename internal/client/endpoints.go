@@ -62,6 +62,7 @@ var UsedEndpoints = []Endpoint{
 	{Method: "GET", Path: "/v3/databases/{id}/ip-restriction"},
 	{Method: "PUT", Path: "/v3/databases/{id}/ip-restriction"},
 	{Method: "POST", Path: "/v3/databases/{id}/reset-password"},
+	{Method: "POST", Path: "/v3/databases/{id}/tls/enable"},
 
 	{Method: "POST", Path: "/v3/docker-registries"},
 	{Method: "GET", Path: "/v3/docker-registries/{id}"},

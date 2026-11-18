@@ -19,8 +19,8 @@ func TestListEnvironmentVariables_Success(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(PaginatedResponse[EnvironmentVariable]{
 			Data: []EnvironmentVariable{
-				{ID: "env-1", Key: "DATABASE_URL", Value: "postgres://localhost/mydb"},
-				{ID: "env-2", Key: "API_KEY", Value: "secret-key-123"},
+				{ID: "env-1", Key: "DATABASE_URL", Value: stringPtr("postgres://localhost/mydb")},
+				{ID: "env-2", Key: "API_KEY", Value: stringPtr("secret-key-123")},
 			},
 			Total: 2,
 		})
@@ -37,8 +37,8 @@ func TestListEnvironmentVariables_Success(t *testing.T) {
 	if envVars[0].Key != "DATABASE_URL" {
 		t.Errorf("expected key %q, got %q", "DATABASE_URL", envVars[0].Key)
 	}
-	if envVars[1].Value != "secret-key-123" {
-		t.Errorf("expected value %q, got %q", "secret-key-123", envVars[1].Value)
+	if *envVars[1].Value != "secret-key-123" {
+		t.Errorf("expected value %q, got %q", "secret-key-123", *envVars[1].Value)
 	}
 }
 
@@ -83,7 +83,7 @@ func TestCreateEnvironmentVariable_Success(t *testing.T) {
 		json.NewEncoder(w).Encode(EnvironmentVariable{
 			ID:    "env-new",
 			Key:   req.Key,
-			Value: req.Value,
+			Value: &req.Value,
 		})
 	})
 	defer server.Close()
@@ -116,7 +116,7 @@ func TestUpdateEnvironmentVariable_Success(t *testing.T) {
 		json.NewEncoder(w).Encode(EnvironmentVariable{
 			ID:    "env-456",
 			Key:   "UPDATED_VAR",
-			Value: "updated-value",
+			Value: stringPtr("updated-value"),
 		})
 	})
 	defer server.Close()
@@ -128,8 +128,8 @@ func TestUpdateEnvironmentVariable_Success(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if envVar.Value != "updated-value" {
-		t.Errorf("expected value %q, got %q", "updated-value", envVar.Value)
+	if *envVar.Value != "updated-value" {
+		t.Errorf("expected value %q, got %q", "updated-value", *envVar.Value)
 	}
 }
 
@@ -150,3 +150,5 @@ func TestDeleteEnvironmentVariable_Success(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
+
+func stringPtr(s string) *string { return &s }

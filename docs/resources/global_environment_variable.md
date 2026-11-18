@@ -27,12 +27,13 @@ resource "sevalla_global_environment_variable" "example" {
 ### Required
 
 - `key` (String) The key of the environment variable. Must be unique across the company's global variables and contain only letters, digits, `-`, `_`, `.` or `:`.
-- `value` (String, Sensitive) The value of the environment variable (at most 32768 characters).
+- `value` (String, Sensitive) The value of the environment variable (at most 32768 characters). The API never returns the value of a secret variable, so Terraform cannot detect changes made to it outside Terraform.
 
 ### Optional
 
 - `is_buildtime` (Boolean) Whether this environment variable is available at build time. Defaults to `true`.
 - `is_runtime` (Boolean) Whether this environment variable is available at runtime. Defaults to `true`.
+- `is_secret` (Boolean) Whether the variable is secret: its value is never returned by the API or shown in the dashboard, but builds and processes still receive it. A secret cannot be made regular again, so changing this from `true` to `false` creates a new variable. Defaults to `false`.
 
 ### Read-Only
 

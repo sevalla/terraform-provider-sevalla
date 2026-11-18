@@ -54,6 +54,8 @@ output "db_internal_host" {
 - `resource_type_name` (String) The name of the resource type.
 - `status` (String) The current status of the database.
 - `storage_size` (Number) The storage size for the database in megabytes.
+- `tls_ca_certificate` (String) The PEM-encoded CA certificate that signed the database server certificate. Null while TLS is off.
+- `tls_enabled` (Boolean) Whether the database accepts TLS connections.
 - `type` (String) The database engine type.
 - `updated_at` (String) When the database was last updated.
 - `version` (String) The database engine version.
