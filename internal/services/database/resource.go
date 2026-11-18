@@ -6,10 +6,12 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/boolvalidator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
@@ -185,6 +187,20 @@ func (r *databaseResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 				Description: "The external port for connecting to the database.",
 				Computed:    true,
 			},
+			"tls_enabled": schema.BoolAttribute{
+				Description: "Whether the database accepts TLS connections. Always `true` for databases created on OCI clusters. Only `true` can be set: it turns TLS on for an older OCI database, which restarts it the database once, and on Redis and Valkey the external connection then requires TLS. TLS cannot be turned off again.",
+				Optional:    true,
+				Computed:    true,
+				// false is never actionable: OCI databases always have TLS and it cannot be turned off.
+				Validators: []validator.Bool{boolvalidator.Equals(true)},
+				PlanModifiers: []planmodifier.Bool{
+					boolplanmodifier.UseStateForUnknown(),
+				},
+			},
+			"tls_ca_certificate": schema.StringAttribute{
+				Description: "The PEM-encoded CA certificate that signed the database server certificate, for clients that verify the server. Null while TLS is off.",
+				Computed:    true,
+			},
 			"company_id": schema.StringAttribute{
 				Description: "The company ID that owns the database.",
 				Computed:    true,
@@ -249,6 +265,13 @@ func (r *databaseResource) Create(ctx context.Context, req resource.CreateReques
 			"Database "+createResult.ID+" did not become ready: "+err.Error(),
 		)
 		return
+	}
+
+	if plan.TLSEnabled.ValueBool() && !db.TLSEnabled {
+		if db, err = r.enableTLS(ctx, createResult.ID); err != nil {
+			resp.Diagnostics.AddError("Error Enabling Database TLS", err.Error())
+			return
+		}
 	}
 
 	resp.Diagnostics.Append(flattenDatabase(ctx, db, &plan)...)
@@ -341,6 +364,13 @@ func (r *databaseResource) Update(ctx context.Context, req resource.UpdateReques
 		}
 	}
 
+	if plan.TLSEnabled.ValueBool() && !state.TLSEnabled.ValueBool() {
+		if _, err := r.enableTLS(ctx, dbID); err != nil {
+			resp.Diagnostics.AddError("Error Enabling Database TLS", err.Error())
+			return
+		}
+	}
+
 	if !plan.Extensions.IsNull() && state.Extensions.IsNull() {
 		writeonly.WarnRecorded(&resp.Diagnostics, path.Root("extensions"), "database")
 	}
@@ -423,6 +453,25 @@ func requiresReplaceUnlessKeyValue() planmodifier.String {
 
 func isKeyValueStore(dbType string) bool {
 	return dbType == "redis" || dbType == "valkey"
+}
+
+// enableTLS turns TLS on once the database is ready and waits until it is ready again.
+func (r *databaseResource) enableTLS(ctx context.Context, dbID string) (*client.Database, error) {
+	if _, err := r.client.WaitForDatabaseStatus(ctx, dbID, []string{"ready"}, databaseReadyTimeout); err != nil {
+		return nil, fmt.Errorf("database %s did not become ready: %w", dbID, err)
+	}
+	if err := r.client.EnableDatabaseTLS(ctx, dbID); err != nil {
+		return nil, fmt.Errorf("could not enable TLS on database %s: %w", dbID, err)
+	}
+	// The API sets the status to updating before it answers, so this waits for the restart.
+	db, err := r.client.WaitForDatabaseStatus(ctx, dbID, []string{"ready"}, databaseReadyTimeout)
+	if err != nil {
+		return nil, fmt.Errorf("database %s did not become ready: %w", dbID, err)
+	}
+	if !db.TLSEnabled {
+		return nil, fmt.Errorf("database %s is ready but TLS is still off", dbID)
+	}
+	return db, nil
 }
 
 // idleStatuses are the statuses in which no operation is in progress.

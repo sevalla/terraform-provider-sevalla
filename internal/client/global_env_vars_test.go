@@ -19,8 +19,8 @@ func TestListGlobalEnvVars_Success(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(PaginatedResponse[GlobalEnvironmentVariable]{
 			Data: []GlobalEnvironmentVariable{
-				{ID: "genv-1", Key: "GLOBAL_API_URL", Value: "https://api.example.com"},
-				{ID: "genv-2", Key: "GLOBAL_LOG_LEVEL", Value: "info"},
+				{ID: "genv-1", Key: "GLOBAL_API_URL", Value: stringPtr("https://api.example.com")},
+				{ID: "genv-2", Key: "GLOBAL_LOG_LEVEL", Value: stringPtr("info")},
 			},
 			Total:  2,
 			Offset: 0,
@@ -39,8 +39,8 @@ func TestListGlobalEnvVars_Success(t *testing.T) {
 	if envVars[0].Key != "GLOBAL_API_URL" {
 		t.Errorf("expected key %q, got %q", "GLOBAL_API_URL", envVars[0].Key)
 	}
-	if envVars[1].Value != "info" {
-		t.Errorf("expected value %q, got %q", "info", envVars[1].Value)
+	if *envVars[1].Value != "info" {
+		t.Errorf("expected value %q, got %q", "info", *envVars[1].Value)
 	}
 }
 
@@ -85,7 +85,7 @@ func TestCreateGlobalEnvVar_Success(t *testing.T) {
 		json.NewEncoder(w).Encode(GlobalEnvironmentVariable{
 			ID:    "genv-new",
 			Key:   req.Key,
-			Value: req.Value,
+			Value: &req.Value,
 		})
 	})
 	defer server.Close()
@@ -118,7 +118,7 @@ func TestUpdateGlobalEnvVar_Success(t *testing.T) {
 		json.NewEncoder(w).Encode(GlobalEnvironmentVariable{
 			ID:    "genv-123",
 			Key:   "UPDATED_KEY",
-			Value: "updated-value",
+			Value: stringPtr("updated-value"),
 		})
 	})
 	defer server.Close()
@@ -130,8 +130,8 @@ func TestUpdateGlobalEnvVar_Success(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if envVar.Value != "updated-value" {
-		t.Errorf("expected value %q, got %q", "updated-value", envVar.Value)
+	if *envVar.Value != "updated-value" {
+		t.Errorf("expected value %q, got %q", "updated-value", *envVar.Value)
 	}
 }
 

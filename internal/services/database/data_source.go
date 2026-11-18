@@ -138,6 +138,14 @@ func (d *databaseDataSource) Schema(_ context.Context, _ datasource.SchemaReques
 				Computed:    true,
 				Sensitive:   true,
 			},
+			"tls_enabled": schema.BoolAttribute{
+				Description: "Whether the database accepts TLS connections.",
+				Computed:    true,
+			},
+			"tls_ca_certificate": schema.StringAttribute{
+				Description: "The PEM-encoded CA certificate that signed the database server certificate. Null while TLS is off.",
+				Computed:    true,
+			},
 			"external_port": schema.StringAttribute{
 				Description: "The external port for connecting to the database.",
 				Computed:    true,

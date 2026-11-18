@@ -34,6 +34,8 @@ type DatabaseResourceModel struct {
 	InternalPort       types.String `tfsdk:"internal_port"`
 	ExternalHostname   types.String `tfsdk:"external_hostname"`
 	ExternalPort       types.String `tfsdk:"external_port"`
+	TLSEnabled         types.Bool   `tfsdk:"tls_enabled"`
+	TLSCACertificate   types.String `tfsdk:"tls_ca_certificate"`
 	CompanyID          types.String `tfsdk:"company_id"`
 	CreatedAt          types.String `tfsdk:"created_at"`
 	UpdatedAt          types.String `tfsdk:"updated_at"`
@@ -97,6 +99,8 @@ func flattenDatabase(_ context.Context, db *client.Database, model *DatabaseReso
 	model.StorageSize = optionalInt64(db.StorageSize)
 	model.InternalPort = optionalString(db.InternalPort)
 	model.ExternalPort = optionalString(db.ExternalPort)
+	model.TLSEnabled = types.BoolValue(db.TLSEnabled)
+	model.TLSCACertificate = optionalString(db.TLSCACertificate)
 
 	return diags
 }

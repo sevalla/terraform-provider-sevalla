@@ -37,12 +37,13 @@ resource "sevalla_application_environment_variable" "build_only" {
 
 - `application_id` (String) The ID of the application this environment variable belongs to.
 - `key` (String) The environment variable key. Must be unique within the application and contain only letters, digits, `-`, `_`, `.` or `:`.
-- `value` (String, Sensitive) The environment variable value (at most 32768 characters).
+- `value` (String, Sensitive) The environment variable value (at most 32768 characters). The API never returns the value of a secret variable, so Terraform cannot detect changes made to it outside Terraform.
 
 ### Optional
 
 - `is_buildtime` (Boolean) Whether the environment variable is available at build time. Defaults to `true`.
 - `is_runtime` (Boolean) Whether the environment variable is available at runtime. Defaults to `true`.
+- `is_secret` (Boolean) Whether the variable is secret: its value is never returned by the API or shown in the dashboard, but builds and processes still receive it. A secret cannot be made regular again, so changing this from `true` to `false` creates a new variable. Defaults to `false`.
 
 ### Read-Only
 

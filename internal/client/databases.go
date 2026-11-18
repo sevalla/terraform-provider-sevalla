@@ -33,6 +33,8 @@ type Database struct {
 	InternalPort       *string `json:"internal_port"`
 	ExternalHostname   *string `json:"external_hostname"`
 	ExternalPort       *string `json:"external_port"`
+	TLSEnabled         bool    `json:"tls_enabled"`
+	TLSCACertificate   *string `json:"tls_ca_certificate"`
 	CreatedAt          string  `json:"created_at"`
 	UpdatedAt          string  `json:"updated_at"`
 }
@@ -161,6 +163,11 @@ func (c *SevallaClient) DeleteDatabase(ctx context.Context, id string) error {
 // ResetDatabasePassword changes the password of the database user.
 func (c *SevallaClient) ResetDatabasePassword(ctx context.Context, id string, newPassword string) error {
 	return c.do(ctx, http.MethodPost, path("/databases/%s/reset-password", id), map[string]string{"new_password": newPassword}, nil)
+}
+
+// EnableDatabaseTLS turns TLS on, one way. It runs asynchronously and restarts the database.
+func (c *SevallaClient) EnableDatabaseTLS(ctx context.Context, id string) error {
+	return c.do(ctx, http.MethodPost, path("/databases/%s/tls/enable", id), nil, nil)
 }
 
 func (c *SevallaClient) ListInternalConnections(ctx context.Context, dbID string) ([]InternalConnection, error) {

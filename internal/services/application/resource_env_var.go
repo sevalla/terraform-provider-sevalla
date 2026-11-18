@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
@@ -35,6 +36,7 @@ type ApplicationEnvVarResourceModel struct {
 	Value         types.String `tfsdk:"value"`
 	IsRuntime     types.Bool   `tfsdk:"is_runtime"`
 	IsBuildtime   types.Bool   `tfsdk:"is_buildtime"`
+	IsSecret      types.Bool   `tfsdk:"is_secret"`
 	CreatedAt     types.String `tfsdk:"created_at"`
 	UpdatedAt     types.String `tfsdk:"updated_at"`
 }
@@ -74,7 +76,7 @@ func (r *applicationEnvVarResource) Schema(_ context.Context, _ resource.SchemaR
 				},
 			},
 			"value": schema.StringAttribute{
-				Description: "The environment variable value (at most 32768 characters).",
+				Description: "The environment variable value (at most 32768 characters). The API never returns the value of a secret variable, so Terraform cannot detect changes made to it outside Terraform.",
 				Required:    true,
 				Sensitive:   true,
 				Validators:  []validator.String{stringvalidator.LengthAtMost(32768)},
@@ -90,6 +92,17 @@ func (r *applicationEnvVarResource) Schema(_ context.Context, _ resource.SchemaR
 				Optional:    true,
 				Computed:    true,
 				Default:     booldefault.StaticBool(true),
+			},
+			"is_secret": schema.BoolAttribute{
+				Description: "Whether the variable is secret: its value is never returned by the API or shown in the dashboard, but builds and processes still receive it. A secret cannot be made regular again, so changing this from `true` to `false` creates a new variable. Defaults to `false`.",
+				Optional:    true,
+				Computed:    true,
+				Default:     booldefault.StaticBool(false),
+				PlanModifiers: []planmodifier.Bool{
+					boolplanmodifier.RequiresReplaceIf(func(_ context.Context, req planmodifier.BoolRequest, resp *boolplanmodifier.RequiresReplaceIfFuncResponse) {
+						resp.RequiresReplace = req.StateValue.ValueBool() && !req.PlanValue.ValueBool()
+					}, "A secret variable cannot be made regular again.", "A secret variable cannot be made regular again."),
+				},
 			},
 			"created_at": schema.StringAttribute{
 				Description: "The timestamp when the environment variable was created.",
@@ -143,6 +156,7 @@ func (r *applicationEnvVarResource) Create(ctx context.Context, req resource.Cre
 		v := plan.IsBuildtime.ValueBool()
 		createReq.IsBuildtime = &v
 	}
+	createReq.IsSecret = plan.IsSecret.ValueBool()
 	envVar, err := r.client.CreateEnvironmentVariable(ctx, "/applications", appID, createReq)
 	if err != nil {
 		resp.Diagnostics.AddError("Error Creating Application Environment Variable", err.Error())
@@ -219,6 +233,7 @@ func (r *applicationEnvVarResource) Update(ctx context.Context, req resource.Upd
 		v := plan.IsBuildtime.ValueBool()
 		updateReq.IsBuildtime = &v
 	}
+	updateReq.IsSecret = plan.IsSecret.ValueBool() && !state.IsSecret.ValueBool()
 
 	envVar, err := r.client.UpdateEnvironmentVariable(ctx, "/applications", appID, state.ID.ValueString(), updateReq)
 	if err != nil {
@@ -264,7 +279,11 @@ var envVarKeyPattern = regexp.MustCompile(`^[A-Za-z0-9_.:-]+$`)
 func flattenEnvVar(envVar *client.EnvironmentVariable, model *ApplicationEnvVarResourceModel) {
 	model.ID = types.StringValue(envVar.ID)
 	model.Key = types.StringValue(envVar.Key)
-	model.Value = types.StringValue(envVar.Value)
+	// A secret's value is withheld, so keep the one Terraform knows.
+	if envVar.Value != nil {
+		model.Value = types.StringValue(*envVar.Value)
+	}
+	model.IsSecret = types.BoolValue(envVar.IsSecret)
 
 	// A null flag means the API default, which is true.
 	model.IsRuntime = types.BoolValue(envVar.IsRuntime == nil || *envVar.IsRuntime)

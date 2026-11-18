@@ -272,7 +272,7 @@ func (r *staticSiteEnvVarResource) ImportState(ctx context.Context, req resource
 func flattenStaticSiteEnvVar(envVar *client.EnvironmentVariable, model *StaticSiteEnvVarResourceModel) {
 	model.ID = types.StringValue(envVar.ID)
 	model.Key = types.StringValue(envVar.Key)
-	model.Value = types.StringValue(envVar.Value)
+	model.Value = types.StringPointerValue(envVar.Value)
 
 	// A null flag means the API default, which is true.
 	model.IsProduction = types.BoolValue(envVar.IsProduction == nil || *envVar.IsProduction)
