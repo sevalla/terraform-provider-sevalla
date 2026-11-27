@@ -419,7 +419,7 @@
         ]
       },
       "post": {
-        "description": "Create a new API key with the specified roles and/or capabilities. The response includes the raw token value, which is only shown once - make sure to store it securely. At least one role or capability must be provided.",
+        "description": "Create a new API key with the specified roles and/or capabilities. The response includes the raw token value, which is only shown once - make sure to store it securely. At least one role or capability must be provided. A key can only get permissions that the calling API key has itself: a permission scoped to one resource needs the same permission on that resource or company-wide, and every resource ID must belong to your company. Otherwise the request returns 403.",
         "operationId": "createApiKeyV3",
         "requestBody": {
           "content": {
@@ -428,7 +428,7 @@
                 "additionalProperties": false,
                 "properties": {
                   "capabilities": {
-                    "description": "List of granular capabilities to assign. At least one role or capability is required",
+                    "description": "List of granular capabilities to assign. At least one role or capability is required. The calling API key must have each of them",
                     "items": {
                       "properties": {
                         "permission": {
@@ -465,7 +465,7 @@
                     "type": "string"
                   },
                   "role_ids": {
-                    "description": "List of role IDs to assign to the API key. At least one role or capability is required",
+                    "description": "List of role IDs to assign to the API key. At least one role or capability is required. The calling API key must have every permission of each role",
                     "items": {
                       "format": "uuid",
                       "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
@@ -1872,7 +1872,7 @@
         ]
       },
       "patch": {
-        "description": "Update an API key's name, roles, or capabilities. When roles or capabilities are provided, they fully replace the existing values. An API key cannot update itself. The API key that AI support manages cannot be changed through the API, so the request returns 403 for it. Use the AI support settings page in the dashboard instead.",
+        "description": "Update an API key's name, roles, or capabilities. When roles or capabilities are provided, they fully replace the existing values. An API key cannot update itself. The calling API key must have every permission the key has now and every permission it would get, so it cannot change a key with more access than its own. A permission scoped to one resource needs the same permission on that resource or company-wide, and every resource ID must belong to your company. Otherwise the request returns 403. The API key that AI support manages cannot be changed through the API, so the request returns 403 for it. Use the AI support settings page in the dashboard instead.",
         "operationId": "updateApiKeyV3",
         "parameters": [
           {
@@ -2412,7 +2412,7 @@
     },
     "/api-keys/{id}/rotate": {
       "post": {
-        "description": "Generate a new token for an API key. The old token can optionally remain valid for a transition period (up to 168 hours) to allow graceful migration. The response includes the new raw token, which is only shown once. An API key cannot rotate itself. The API key that AI support manages cannot be changed through the API, so the request returns 403 for it. Use the AI support settings page in the dashboard instead.",
+        "description": "Generate a new token for an API key. The old token can optionally remain valid for a transition period (up to 168 hours) to allow graceful migration. The response includes the new raw token, which is only shown once. An API key cannot rotate itself, and it cannot rotate a key that has permissions it does not have itself (403). Rotation keeps the roles and capabilities of the key. The API key that AI support manages cannot be changed through the API, so the request returns 403 for it. Use the AI support settings page in the dashboard instead.",
         "operationId": "rotateApiKeyV3",
         "parameters": [
           {
@@ -2759,7 +2759,7 @@
     },
     "/api-keys/{id}/toggle": {
       "post": {
-        "description": "Enable or disable an API key. A disabled API key cannot be used for authentication until it is re-enabled. An API key cannot toggle itself. The API key that AI support manages cannot be changed through the API, so the request returns 403 for it. Use the AI support settings page in the dashboard instead.",
+        "description": "Enable or disable an API key. A disabled API key cannot be used for authentication until it is re-enabled. An API key cannot toggle itself, and it cannot enable a key that has permissions it does not have itself (403). Disabling such a key is allowed. The API key that AI support manages cannot be changed through the API, so the request returns 403 for it. Use the AI support settings page in the dashboard instead.",
         "operationId": "toggleApiKeyV3",
         "parameters": [
           {
@@ -3549,12 +3549,17 @@
                     "type": "string"
                   },
                   "docker_image": {
-                    "description": "Docker image reference including tag or digest. Required when source is `dockerImage`.",
-                    "example": "nginx:latest",
-                    "type": [
-                      "string",
-                      "null"
-                    ]
+                    "anyOf": [
+                      {
+                        "maxLength": 512,
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "Docker image reference including tag or digest, such as `nginx:1.27` or `ghcr.io/acme/api:v1`. Must be a valid image reference: no spaces, quotes or uppercase letters in the repository name. Required when source is `dockerImage`.",
+                    "example": "nginx:latest"
                   },
                   "docker_registry_credential_id": {
                     "description": "Identifier of a stored Docker registry credential for pulling private images. Only used when source is `dockerImage`.",
@@ -3662,7 +3667,7 @@
                       ]
                     },
                     "build_type": {
-                      "description": "Build strategy used to build the application. `ingot` - build using a Dockerfile that Ingot generates from the source code on every build. New Git applications use `ingot` by default. `dockerfile` - build using the Dockerfile from your repository. `railpack` - auto-detected build system, successor to Nixpacks. `pack` - build using Cloud Native Buildpacks. `nixpacks` - deprecated, use `ingot` instead. Auto-detected build system.",
+                      "description": "Build strategy used to build the application. `ingot` - build using a Dockerfile that Ingot generates from the source code on every build. New Git applications use `ingot` by default. `dockerfile` - build using the Dockerfile from your repository. `railpack` - auto-detected build system, successor to Nixpacks. `pack` - build using Cloud Native Buildpacks. `nixpacks` - retired auto-detected build system. Applications that already use it keep it, but it can no longer be selected.",
                       "enum": [
                         "ingot",
                         "dockerfile",
@@ -3815,7 +3820,7 @@
                       ]
                     },
                     "nixpacks_version": {
-                      "description": "Pinned Nixpacks version. When null, the platform default version is used. Only applies to the deprecated `nixpacks` build type.",
+                      "description": "Pinned Nixpacks version. When null, the platform default version is used. Only applies to applications that still use the retired `nixpacks` build type.",
                       "example": "1.21.0",
                       "type": [
                         "string",
@@ -5909,7 +5914,7 @@
                       ]
                     },
                     "build_type": {
-                      "description": "Build strategy used to build the application. `ingot` - build using a Dockerfile that Ingot generates from the source code on every build. New Git applications use `ingot` by default. `dockerfile` - build using the Dockerfile from your repository. `railpack` - auto-detected build system, successor to Nixpacks. `pack` - build using Cloud Native Buildpacks. `nixpacks` - deprecated, use `ingot` instead. Auto-detected build system.",
+                      "description": "Build strategy used to build the application. `ingot` - build using a Dockerfile that Ingot generates from the source code on every build. New Git applications use `ingot` by default. `dockerfile` - build using the Dockerfile from your repository. `railpack` - auto-detected build system, successor to Nixpacks. `pack` - build using Cloud Native Buildpacks. `nixpacks` - retired auto-detected build system. Applications that already use it keep it, but it can no longer be selected.",
                       "enum": [
                         "ingot",
                         "dockerfile",
@@ -6128,7 +6133,7 @@
                       ]
                     },
                     "nixpacks_version": {
-                      "description": "Pinned Nixpacks version. When null, the platform default version is used. Only applies to the deprecated `nixpacks` build type.",
+                      "description": "Pinned Nixpacks version. When null, the platform default version is used. Only applies to applications that still use the retired `nixpacks` build type.",
                       "example": "1.21.0",
                       "type": [
                         "string",
@@ -6541,7 +6546,7 @@
                     "type": "array"
                   },
                   "auto_deploy": {
-                    "description": "Enable or disable automatic deployments on every push to the default branch. Only works with privateGit applications - has no effect on publicGit or dockerImage applications. Ignored when the same request switches the source to dockerImage or app.",
+                    "description": "Enable or disable automatic deployments on every push to the default branch. Only works with privateGit applications - has no effect on publicGit or dockerImage applications. Ignored when the same request switches the source to dockerImage or app. Turning it on for a GitLab or Bitbucket repository adds a webhook to the repository: the request can fail when no connected account that shared the repository can manage its webhooks, and a source change sent in the same request stays applied.",
                     "example": true,
                     "type": "boolean"
                   },
@@ -6556,7 +6561,7 @@
                     "type": "string"
                   },
                   "build_type": {
-                    "description": "Build strategy to use. `ingot` - build using a Dockerfile that Ingot generates from the source code on every build. Each generated version is kept and can be listed under the application's Dockerfiles. `dockerfile` - build using the Dockerfile from your repository. `railpack` - auto-detected build system, successor to Nixpacks. `pack` - build using Cloud Native Buildpacks. `nixpacks` - deprecated, use `ingot` instead. Auto-detected build system.",
+                    "description": "Build strategy to use. `ingot` - build using a Dockerfile that Ingot generates from the source code on every build. Each generated version is kept and can be listed under the application's Dockerfiles. `dockerfile` - build using the Dockerfile from your repository. `railpack` - auto-detected build system, successor to Nixpacks. `pack` - build using Cloud Native Buildpacks. `nixpacks` - retired auto-detected build system. Only accepted for applications that already use it - switching to it from another build type returns a 400 error.",
                     "enum": [
                       "ingot",
                       "dockerfile",
@@ -6595,7 +6600,7 @@
                     "type": "array"
                   },
                   "default_branch": {
-                    "description": "Git branch used for automatic and manual deployments when no branch is explicitly specified. Ignored when the same request switches the source to dockerImage or app.",
+                    "description": "Git branch used for automatic and manual deployments when no branch is explicitly specified. Ignored when the same request switches the source to dockerImage or app. When the request sends `source` and leaves this out, the current branch is kept if the repository stays the same. For a new repository, its default branch is looked up and used, and the request fails with a 400 error if that branch can't be found.",
                     "example": "main",
                     "minLength": 1,
                     "type": "string"
@@ -6613,8 +6618,9 @@
                     "type": "string"
                   },
                   "docker_image": {
-                    "description": "Docker image reference including tag or digest. Required when source is `dockerImage`.",
+                    "description": "Docker image reference including tag or digest, such as `nginx:1.27` or `ghcr.io/acme/api:v1`. Must be a valid image reference: no spaces, quotes or uppercase letters in the repository name. Required when source is `dockerImage`.",
                     "example": "nginx:latest",
+                    "maxLength": 512,
                     "type": "string"
                   },
                   "docker_registry_credential_id": {
@@ -6668,7 +6674,7 @@
                     "type": "array"
                   },
                   "nixpacks_version": {
-                    "description": "Pinned Nixpacks version. When not set, switching to `nixpacks` pins `1.41` and an app already on `nixpacks` keeps its current version. Only applies to the deprecated `nixpacks` build type.",
+                    "description": "Pinned Nixpacks version. When not set, the application keeps its current version. Only applies to applications that still use the retired `nixpacks` build type.",
                     "enum": [
                       "1.29",
                       "1.39",
@@ -6745,7 +6751,7 @@
                       ]
                     },
                     "build_type": {
-                      "description": "Build strategy used to build the application. `ingot` - build using a Dockerfile that Ingot generates from the source code on every build. New Git applications use `ingot` by default. `dockerfile` - build using the Dockerfile from your repository. `railpack` - auto-detected build system, successor to Nixpacks. `pack` - build using Cloud Native Buildpacks. `nixpacks` - deprecated, use `ingot` instead. Auto-detected build system.",
+                      "description": "Build strategy used to build the application. `ingot` - build using a Dockerfile that Ingot generates from the source code on every build. New Git applications use `ingot` by default. `dockerfile` - build using the Dockerfile from your repository. `railpack` - auto-detected build system, successor to Nixpacks. `pack` - build using Cloud Native Buildpacks. `nixpacks` - retired auto-detected build system. Applications that already use it keep it, but it can no longer be selected.",
                       "enum": [
                         "ingot",
                         "dockerfile",
@@ -6898,7 +6904,7 @@
                       ]
                     },
                     "nixpacks_version": {
-                      "description": "Pinned Nixpacks version. When null, the platform default version is used. Only applies to the deprecated `nixpacks` build type.",
+                      "description": "Pinned Nixpacks version. When null, the platform default version is used. Only applies to applications that still use the retired `nixpacks` build type.",
                       "example": "1.21.0",
                       "type": [
                         "string",
@@ -8303,7 +8309,7 @@
     },
     "/applications/{id}/clone": {
       "post": {
-        "description": "Create an identical copy of an existing application including its processes, environment variables, build settings, and configuration. The cloned application is created in a new namespace and is not added to the pipeline stage of the source application. No deployment is started - start one with the Trigger Deployment endpoint. The clone copies `auto_deploy` from the source, so if it is on, the next push to the default branch deploys the clone with the same environment variables as the source, including any database connection URLs. Review the variables or turn auto deploy off before that happens.",
+        "description": "Create an identical copy of an existing application including its processes, environment variables, build settings, and configuration. A clone of an application that uses the retired `nixpacks` build type is created with `ingot` instead. The cloned application is created in a new namespace and is not added to the pipeline stage of the source application. No deployment is started - start one with the Trigger Deployment endpoint. The clone copies `auto_deploy` from the source, so if it is on, the next push to the default branch deploys the clone with the same environment variables as the source, including any database connection URLs. Review the variables or turn auto deploy off before that happens.",
         "operationId": "cloneApplicationV3",
         "parameters": [
           {
@@ -8386,7 +8392,7 @@
                       ]
                     },
                     "build_type": {
-                      "description": "Build strategy used to build the application. `ingot` - build using a Dockerfile that Ingot generates from the source code on every build. New Git applications use `ingot` by default. `dockerfile` - build using the Dockerfile from your repository. `railpack` - auto-detected build system, successor to Nixpacks. `pack` - build using Cloud Native Buildpacks. `nixpacks` - deprecated, use `ingot` instead. Auto-detected build system.",
+                      "description": "Build strategy used to build the application. `ingot` - build using a Dockerfile that Ingot generates from the source code on every build. New Git applications use `ingot` by default. `dockerfile` - build using the Dockerfile from your repository. `railpack` - auto-detected build system, successor to Nixpacks. `pack` - build using Cloud Native Buildpacks. `nixpacks` - retired auto-detected build system. Applications that already use it keep it, but it can no longer be selected.",
                       "enum": [
                         "ingot",
                         "dockerfile",
@@ -8539,7 +8545,7 @@
                       ]
                     },
                     "nixpacks_version": {
-                      "description": "Pinned Nixpacks version. When null, the platform default version is used. Only applies to the deprecated `nixpacks` build type.",
+                      "description": "Pinned Nixpacks version. When null, the platform default version is used. Only applies to applications that still use the retired `nixpacks` build type.",
                       "example": "1.21.0",
                       "type": [
                         "string",
@@ -10511,7 +10517,7 @@
         ]
       },
       "post": {
-        "description": "Trigger a new deployment for an application. By default, deploys the latest commit on the default branch. You can optionally specify a different branch, a specific commit, a Docker image, or restart from the last successful deployment. You can also rebuild without the build cache. The deployment runs asynchronously - use the get deployment endpoint to track its progress.",
+        "description": "Trigger a new deployment for an application. By default, deploys the latest commit on the default branch. You can optionally specify a different branch, a specific commit, a Docker image, or restart from the last successful deployment. You can also rebuild without the build cache. The deployment runs asynchronously - use the get deployment endpoint to track its progress. Can return 400 with the reason when the repository or the branch of the application cannot be read.",
         "operationId": "triggerDeploymentV3",
         "parameters": [
           {
@@ -10544,8 +10550,9 @@
                     "type": "string"
                   },
                   "docker_image": {
-                    "description": "Docker image reference to deploy (e.g., `nginx:latest`). Only applies to applications with `dockerImage` source.",
+                    "description": "Docker image reference to deploy, such as `nginx:latest`. Must be a valid image reference: no spaces, quotes or uppercase letters in the repository name. Only applies to applications with `dockerImage` source.",
                     "example": "nginx:latest",
+                    "maxLength": 512,
                     "type": "string"
                   },
                   "is_restart": {
@@ -20785,7 +20792,7 @@
             }
           },
           {
-            "description": "JSON-encoded array of filter objects for advanced filtering. Each filter has a `key`, `operator`, and `value` or `values` field. Supported keys are `attributes.<name>` (log attributes such as clientRequestPath, clientRequestMethod or edgeResponseStatus), `tags.<name>`, `id`, `message` and `severity`. Unsupported keys are rejected with a 400 response.",
+            "description": "JSON-encoded array of filter objects for advanced filtering. Each filter has a `key`, `operator`, and `value` or `values` field. Supported keys are `attributes.<name>` (log attributes such as clientRequestPath, clientRequestMethod or edgeResponseStatus), `tags.<name>`, `id`, `message` and `severity`. `value` must be a string and `values` an array of strings. You can send up to 20 filters, up to 100 `values` per filter and strings up to 1000 characters. Invalid JSON, unsupported keys or operators and filters outside these limits are rejected with a 400 response.",
             "in": "query",
             "name": "filters",
             "required": false,
@@ -21115,7 +21122,7 @@
             }
           },
           {
-            "description": "JSON-encoded array of filter objects for advanced filtering. Each filter has a `key`, `operator`, and `value` or `values` field. Supported keys are `attributes.<name>` (log attributes such as clientRequestPath, clientRequestMethod or edgeResponseStatus), `tags.<name>`, `id`, `message` and `severity`. Unsupported keys are rejected with a 400 response.",
+            "description": "JSON-encoded array of filter objects for advanced filtering. Each filter has a `key`, `operator`, and `value` or `values` field. Supported keys are `attributes.<name>` (log attributes such as clientRequestPath, clientRequestMethod or edgeResponseStatus), `tags.<name>`, `id`, `message` and `severity`. `value` must be a string and `values` an array of strings. You can send up to 20 filters, up to 100 `values` per filter and strings up to 1000 characters. Invalid JSON, unsupported keys or operators and filters outside these limits are rejected with a 400 response.",
             "in": "query",
             "name": "filters",
             "required": false,
@@ -21457,7 +21464,7 @@
             }
           },
           {
-            "description": "JSON-encoded array of filter objects for advanced filtering. Each filter has a `key`, `operator`, and `value` or `values` field. Supported keys are `attributes.<name>` (log attributes such as clientRequestPath, clientRequestMethod or edgeResponseStatus), `tags.<name>`, `id`, `message` and `severity`. Unsupported keys are rejected with a 400 response.",
+            "description": "JSON-encoded array of filter objects for advanced filtering. Each filter has a `key`, `operator`, and `value` or `values` field. Supported keys are `attributes.<name>` (log attributes such as clientRequestPath, clientRequestMethod or edgeResponseStatus), `tags.<name>`, `id`, `message` and `severity`. `value` must be a string and `values` an array of strings. You can send up to 20 filters, up to 100 `values` per filter and strings up to 1000 characters. Invalid JSON, unsupported keys or operators and filters outside these limits are rejected with a 400 response.",
             "in": "query",
             "name": "filters",
             "required": false,
@@ -21779,7 +21786,7 @@
             }
           },
           {
-            "description": "JSON-encoded array of filter objects for advanced filtering. Each filter has a `key`, `operator`, and `value` or `values` field. Supported keys are `attributes.<name>` (log attributes such as clientRequestPath, clientRequestMethod or edgeResponseStatus), `tags.<name>`, `id`, `message` and `severity`. Unsupported keys are rejected with a 400 response.",
+            "description": "JSON-encoded array of filter objects for advanced filtering. Each filter has a `key`, `operator`, and `value` or `values` field. Supported keys are `attributes.<name>` (log attributes such as clientRequestPath, clientRequestMethod or edgeResponseStatus), `tags.<name>`, `id`, `message` and `severity`. `value` must be a string and `values` an array of strings. You can send up to 20 filters, up to 100 `values` per filter and strings up to 1000 characters. Invalid JSON, unsupported keys or operators and filters outside these limits are rejected with a 400 response.",
             "in": "query",
             "name": "filters",
             "required": false,
@@ -22142,7 +22149,7 @@
             }
           },
           {
-            "description": "JSON-encoded array of filter objects for advanced filtering. Each filter has a `key`, `operator`, and `value` or `values` field. Supported keys are `attributes.<name>` (log attributes such as clientRequestPath, clientRequestMethod or edgeResponseStatus), `tags.<name>`, `id`, `message` and `severity`. Unsupported keys are rejected with a 400 response.",
+            "description": "JSON-encoded array of filter objects for advanced filtering. Each filter has a `key`, `operator`, and `value` or `values` field. Supported keys are `attributes.<name>` (log attributes such as clientRequestPath, clientRequestMethod or edgeResponseStatus), `tags.<name>`, `id`, `message` and `severity`. `value` must be a string and `values` an array of strings. You can send up to 20 filters, up to 100 `values` per filter and strings up to 1000 characters. Invalid JSON, unsupported keys or operators and filters outside these limits are rejected with a 400 response.",
             "in": "query",
             "name": "filters",
             "required": false,
@@ -22482,7 +22489,7 @@
             }
           },
           {
-            "description": "JSON-encoded array of filter objects for advanced filtering. Each filter has a `key`, `operator`, and `value` or `values` field. Supported keys are `attributes.<name>` (log attributes such as clientRequestPath, clientRequestMethod or edgeResponseStatus), `tags.<name>`, `id`, `message` and `severity`. Unsupported keys are rejected with a 400 response.",
+            "description": "JSON-encoded array of filter objects for advanced filtering. Each filter has a `key`, `operator`, and `value` or `values` field. Supported keys are `attributes.<name>` (log attributes such as clientRequestPath, clientRequestMethod or edgeResponseStatus), `tags.<name>`, `id`, `message` and `severity`. `value` must be a string and `values` an array of strings. You can send up to 20 filters, up to 100 `values` per filter and strings up to 1000 characters. Invalid JSON, unsupported keys or operators and filters outside these limits are rejected with a 400 response.",
             "in": "query",
             "name": "filters",
             "required": false,
@@ -22833,7 +22840,7 @@
             }
           },
           {
-            "description": "JSON-encoded array of filter objects for advanced filtering. Each filter has a `key`, `operator`, and `value` or `values` field. Supported keys are `attributes.<name>` (log attributes such as clientRequestPath, clientRequestMethod or edgeResponseStatus), `tags.<name>`, `id`, `message` and `severity`. Unsupported keys are rejected with a 400 response.",
+            "description": "JSON-encoded array of filter objects for advanced filtering. Each filter has a `key`, `operator`, and `value` or `values` field. Supported keys are `attributes.<name>` (log attributes such as clientRequestPath, clientRequestMethod or edgeResponseStatus), `tags.<name>`, `id`, `message` and `severity`. `value` must be a string and `values` an array of strings. You can send up to 20 filters, up to 100 `values` per filter and strings up to 1000 characters. Invalid JSON, unsupported keys or operators and filters outside these limits are rejected with a 400 response.",
             "in": "query",
             "name": "filters",
             "required": false,
@@ -23177,7 +23184,7 @@
             }
           },
           {
-            "description": "JSON-encoded array of filter objects for advanced filtering. Each filter has a `key`, `operator`, and `value` or `values` field. Supported keys are `attributes.<name>` (log attributes such as clientRequestPath, clientRequestMethod or edgeResponseStatus), `tags.<name>`, `id`, `message` and `severity`. Unsupported keys are rejected with a 400 response.",
+            "description": "JSON-encoded array of filter objects for advanced filtering. Each filter has a `key`, `operator`, and `value` or `values` field. Supported keys are `attributes.<name>` (log attributes such as clientRequestPath, clientRequestMethod or edgeResponseStatus), `tags.<name>`, `id`, `message` and `severity`. `value` must be a string and `values` an array of strings. You can send up to 20 filters, up to 100 `values` per filter and strings up to 1000 characters. Invalid JSON, unsupported keys or operators and filters outside these limits are rejected with a 400 response.",
             "in": "query",
             "name": "filters",
             "required": false,
@@ -26370,13 +26377,13 @@
                     ]
                   },
                   "schedule": {
-                    "description": "Cron expression defining the execution schedule. Required for cron processes.",
+                    "description": "Standard five-field cron expression for cron processes, such as `0 */6 * * *`. Macros like `@daily` and a seconds field are not supported. If omitted, the process runs hourly (`@hourly`).",
                     "example": "0 */6 * * *",
                     "maxLength": 100,
                     "type": "string"
                   },
                   "time_zone": {
-                    "description": "IANA time zone for the cron schedule. Only applicable to cron processes.",
+                    "description": "IANA time zone name for the cron schedule, such as `America/New_York` or `UTC`. Unknown time zones are rejected. If omitted, the cluster's default time zone is used. Only applicable to cron processes.",
                     "example": "America/New_York",
                     "maxLength": 100,
                     "type": "string"
@@ -29780,13 +29787,13 @@
                     ]
                   },
                   "schedule": {
-                    "description": "Cron expression defining the execution schedule. Only applicable to cron processes.",
+                    "description": "Standard five-field cron expression, such as `0 */6 * * *`. Macros like `@daily` and a seconds field are not supported. Send an empty string to clear it, after which the process runs hourly (`@hourly`). Only applicable to cron processes.",
                     "example": "0 */6 * * *",
                     "maxLength": 100,
                     "type": "string"
                   },
                   "time_zone": {
-                    "description": "IANA time zone for the cron schedule. Only applicable to cron processes.",
+                    "description": "IANA time zone name for the cron schedule, such as `America/New_York` or `UTC`. Unknown time zones are rejected. Send an empty string to clear it, after which the cluster default time zone is used. Only applicable to cron processes.",
                     "example": "America/New_York",
                     "maxLength": 100,
                     "type": "string"
@@ -35533,7 +35540,7 @@
     },
     "/applications/{id}/repository/contents": {
       "get": {
-        "description": "Read the contents of a single file from the application Git repository at a given ref. Defaults to the commit of the latest successful deployment so you read exactly the code that is running. Binary files and files larger than 1 MB return metadata only with a null `content` (check `is_binary` and `truncated`). Returns 404 when the file does not exist at the ref. Only applications with a `privateGit` or `publicGit` source have a repository; `dockerImage` and internally created apps return 422.",
+        "description": "Read the contents of a single file from the application Git repository at a given ref. Defaults to the commit of the latest successful deployment so you read exactly the code that is running. Binary files and files larger than 1 MB return metadata only with a null `content` (check `is_binary` and `truncated`). Returns 404 when the file does not exist at the ref. Only applications with a `privateGit` or `publicGit` source have a repository; `dockerImage` and internally created apps return 422. A repository that the Git connections of the company can no longer read can also return 422, with the reason.",
         "operationId": "getApplicationRepositoryFileV3",
         "parameters": [
           {
@@ -35919,11 +35926,11 @@
     },
     "/applications/{id}/repository/search": {
       "get": {
-        "description": "Search the application Git repository for code matching a query, useful for locating where something is defined or used. Search runs against the provider index, which covers the default branch, so it does not accept a ref. Result quality varies by provider: it is strongest on GitHub and more limited on GitLab and Bitbucket. Only applications with a `privateGit` or `publicGit` source have a repository; `dockerImage` and internally created apps return 422.",
+        "description": "Search the application Git repository for code matching a query, useful for locating where something is defined or used. Search runs against the provider index, which covers the default branch, so it does not accept a ref. Result quality varies by provider: it is strongest on GitHub and more limited on GitLab and Bitbucket. Providers only search code with a token, so `publicGit` applications return no matches. Only applications with a `privateGit` or `publicGit` source have a repository; `dockerImage` and internally created apps return 422. A repository that the Git connections of the company can no longer read can also return 422, with the reason.",
         "operationId": "searchApplicationRepositoryV3",
         "parameters": [
           {
-            "description": "Code search query. Searches file contents in the repository.",
+            "description": "Text to search for in the repository file contents. On GitHub and Bitbucket it is matched as one exact phrase, and search qualifiers such as `repo:` or `path:` are treated as plain text.",
             "in": "query",
             "name": "query",
             "required": true,
@@ -36296,7 +36303,7 @@
     },
     "/applications/{id}/repository/tree": {
       "get": {
-        "description": "List files and directories in the application Git repository at a given ref. Use this to discover the repository structure before reading individual files. Defaults to reading the commit of the latest successful deployment so you see exactly the code that is running. Only applications with a `privateGit` or `publicGit` source have a repository; `dockerImage` and internally created apps return 422.",
+        "description": "List files and directories in the application Git repository at a given ref. Use this to discover the repository structure before reading individual files. Defaults to reading the commit of the latest successful deployment so you see exactly the code that is running. Only applications with a `privateGit` or `publicGit` source have a repository; `dockerImage` and internally created apps return 422. A repository that the Git connections of the company can no longer read can also return 422, with the reason.",
         "operationId": "listApplicationRepositoryTreeV3",
         "parameters": [
           {
@@ -38491,8 +38498,25 @@
     },
     "/auth/device-codes": {
       "post": {
-        "description": "Request a new device authorization code. The external client displays this code to the user, who then visits the Sevalla dashboard to approve the device. The client polls the GET endpoint until the code is approved, denied, or expired. Codes expire after 5 minutes. Maximum 5 active codes per IP address. Send the optional `x-sevalla-client` header to name the client that requests access, for example `claude-code`.",
+        "description": "Start a device sign-in. The client shows `user_code` to the user, who enters it on the Sevalla dashboard authorize page and picks the company and permissions for a new API key. The client keeps `device_code` to itself and polls `POST /auth/device-codes/token` with it until the request is approved, denied or expired. Codes expire after 5 minutes and work once. Maximum 5 active codes per IP address. Send the optional `x-sevalla-client` header to name the client that requests access, for example `sevalla-cli/2.2.0`. The dashboard shows that name to the user as reported by the client. A CLI on the same computer can send `callback_url` so the browser hands the approval straight back to it, and then the token endpoint needs the `approval_secret` from that callback.",
         "operationId": "createDeviceCodeV3",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "callback_url": {
+                    "description": "Optional loopback URL where the dashboard sends the browser after the user approves or denies, for a CLI that listens on this computer. It must be `http://127.0.0.1:<port>/callback/<nonce>` or `http://[::1]:<port>/callback/<nonce>`, with a port from 1024 to 65535 and a nonce of 22 to 64 letters, digits, `-` or `_`, without a query, fragment or user info, and at most 120 characters. After approval the dashboard opens it with an `approval_secret` query parameter, and the token endpoint only releases the key together with that secret. On deny it adds `error=access_denied` instead",
+                    "example": "http://127.0.0.1:49152/callback/q0Zr8mWbH1sLx4aPqE6uJ2dFgN7oRtYv",
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": false
+        },
         "responses": {
           "201": {
             "content": {
@@ -38500,19 +38524,25 @@
                 "schema": {
                   "additionalProperties": false,
                   "properties": {
-                    "code": {
-                      "description": "The device code to display to the user. The user enters this code in the Sevalla dashboard to authorize the device",
-                      "example": "ABCD1234",
+                    "device_code": {
+                      "description": "The secret the client sends to the token endpoint to collect the API key. Keep it in the client and never show it to the user or put it in a URL",
+                      "example": "kT3n9cQ0yVZr8mWbH1sLx4aPqE6uJ2dFgN7oRtYvS5w",
                       "type": "string"
                     },
                     "expires_at": {
                       "description": "ISO 8601 timestamp when the device code expires. Codes are valid for 5 minutes",
                       "example": "2025-06-01T12:05:00.000Z",
                       "type": "string"
+                    },
+                    "user_code": {
+                      "description": "The short code to show to the user. The user enters it on the Sevalla dashboard authorize page to approve the request",
+                      "example": "ABCD1234",
+                      "type": "string"
                     }
                   },
                   "required": [
-                    "code",
+                    "user_code",
+                    "device_code",
                     "expires_at"
                   ],
                   "type": "object"
@@ -38664,23 +38694,37 @@
         ]
       }
     },
-    "/auth/device-codes/{code}": {
-      "get": {
-        "description": "Check the current status of a device authorization code. The external client should poll this endpoint at regular intervals (recommended every 5 seconds) until the status changes from `pending`. When approved, the response includes the API key token for a one-time retrieval - the token cannot be fetched again.",
-        "operationId": "pollDeviceCodeV3",
-        "parameters": [
-          {
-            "description": "The device code to check the status of",
-            "in": "path",
-            "name": "code",
-            "required": true,
-            "schema": {
-              "example": "ABCD1234",
-              "minLength": 1,
-              "type": "string"
+    "/auth/device-codes/token": {
+      "post": {
+        "description": "Check a device sign-in with the `device_code` from the create endpoint. Poll every 5 seconds (at most 30 requests per minute for each device code and 60 per minute for each IP address) until the status is no longer `pending`. Sign-ins started by the Sevalla MCP server, and device codes created with a `callback_url`, also need the `approval_secret` the dashboard adds to the callback URL, so only the browser that approved can collect the key. When the user has approved, this call creates the API key with the company and permissions the user picked and returns it once. After that the code is gone and later calls return `expired`.",
+        "operationId": "exchangeDeviceCodeV3",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "approval_secret": {
+                    "description": "The one-time secret the dashboard adds to the callback URL after the user approves. Required for sign-ins started by the Sevalla MCP server and for device codes created with a `callback_url`: without it their status stays `pending`. Device codes without a callback, such as the typed-code sign-in of the Sevalla CLI, do not need it",
+                    "example": "Zq8vN2mXc4rT7yWb1kLp9sHd3fJg6uEa0oRiQtYxS5w",
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "device_code": {
+                    "description": "The `device_code` returned when the device code was created",
+                    "example": "kT3n9cQ0yVZr8mWbH1sLx4aPqE6uJ2dFgN7oRtYvS5w",
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "device_code"
+                ],
+                "type": "object"
+              }
             }
-          }
-        ],
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "content": {
@@ -38689,7 +38733,7 @@
                   "additionalProperties": false,
                   "properties": {
                     "status": {
-                      "description": "Current status of the device code. `pending` - waiting for user action, `approved` - user approved and token is included, `denied` - user explicitly rejected the request, `expired` - code has expired",
+                      "description": "Current status of the device code. `pending` - waiting for the user, `approved` - the user approved and `token` is included, `denied` - the user rejected the request, `expired` - the code expired, was already used or does not exist",
                       "enum": [
                         "pending",
                         "approved",
@@ -38700,7 +38744,7 @@
                       "type": "string"
                     },
                     "token": {
-                      "description": "The API key token, only present when status is `approved`. This is the only time the token is returned - store it securely",
+                      "description": "The new API key, only present when status is `approved`. It is returned once, the code cannot be used again, and the key expires after 90 days. Store it securely",
                       "example": "svl_abc123...",
                       "type": "string"
                     }
@@ -38744,6 +38788,51 @@
                     "status": {
                       "description": "HTTP status code",
                       "example": 400,
+                      "maximum": 9007199254740991,
+                      "minimum": -9007199254740991,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "message",
+                    "status"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Default Response"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "code": {
+                          "description": "Error tracking code for support reference",
+                          "example": "err-abc-123",
+                          "type": "string"
+                        },
+                        "message": {
+                          "description": "Additional error details or instructions",
+                          "example": "If you need assistance, please contact support and provide this error code.",
+                          "type": "string"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "message": {
+                      "description": "Error message",
+                      "example": "Too many requests",
+                      "type": "string"
+                    },
+                    "status": {
+                      "description": "HTTP status code",
+                      "example": 429,
                       "maximum": 9007199254740991,
                       "minimum": -9007199254740991,
                       "type": "integer"
@@ -38806,7 +38895,7 @@
           }
         },
         "security": [],
-        "summary": "Poll device code status",
+        "summary": "Exchange a device code for an API key",
         "tags": [
           "Device Authorization"
         ]
@@ -44010,27 +44099,20 @@
           "content": {
             "application/json": {
               "schema": {
-                "anyOf": [
-                  {
-                    "properties": {
-                      "target_database_id": {
-                        "description": "Optional ID of a different database to restore the backup into. When provided, the backup is cloned to this target database instead of overwriting the source. The target must be in the same cluster, of the same database type, and on the same version as the source, and must have snapshot backups too. Its current data will be replaced.",
-                        "example": "fb5e5168-4281-4bec-94c5-0d1584e9e657",
-                        "format": "uuid",
-                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
-                        "type": "string"
-                      }
-                    },
-                    "type": "object"
-                  },
-                  {
-                    "type": "null"
+                "properties": {
+                  "target_database_id": {
+                    "description": "Optional ID of a different database to restore the backup into. When provided, the backup is cloned to this target database instead of overwriting the source. The target must be in the same cluster, of the same database type, and on the same version as the source, and must have snapshot backups too. Its current data will be replaced.",
+                    "example": "fb5e5168-4281-4bec-94c5-0d1584e9e657",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "type": "string"
                   }
-                ]
+                },
+                "type": "object"
               }
             }
           },
-          "required": true
+          "required": false
         },
         "responses": {
           "202": {
@@ -45741,27 +45823,20 @@
           "content": {
             "application/json": {
               "schema": {
-                "anyOf": [
-                  {
-                    "properties": {
-                      "target_database_id": {
-                        "description": "Optional ID of a different database to restore the backup into. When provided, the backup is restored into this database instead of the source. The target must be in the same cluster and of the same database type as the source. Its current data will be replaced.",
-                        "example": "fb5e5168-4281-4bec-94c5-0d1584e9e657",
-                        "format": "uuid",
-                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
-                        "type": "string"
-                      }
-                    },
-                    "type": "object"
-                  },
-                  {
-                    "type": "null"
+                "properties": {
+                  "target_database_id": {
+                    "description": "Optional ID of a different database to restore the backup into. When provided, the backup is restored into this database instead of the source. The target must be in the same cluster and of the same database type as the source. Its current data will be replaced.",
+                    "example": "fb5e5168-4281-4bec-94c5-0d1584e9e657",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "type": "string"
                   }
-                ]
+                },
+                "type": "object"
               }
             }
           },
-          "required": true
+          "required": false
         },
         "responses": {
           "202": {
@@ -53075,7 +53150,7 @@
     },
     "/git/providers": {
       "get": {
-        "description": "Retrieve available Git providers (GitHub, Bitbucket, GitLab) with their OAuth connect URLs. Use the connect_url to initiate the OAuth flow and link a Git account. GitHub also includes a settings_url for managing repository access permissions.",
+        "description": "Retrieve available Git providers (GitHub, Bitbucket, GitLab) with the URL to open in a browser to connect each one. GitHub also includes a settings_url for managing repository access permissions.",
         "operationId": "listGitProvidersV3",
         "responses": {
           "200": {
@@ -53087,7 +53162,7 @@
                     "additionalProperties": false,
                     "properties": {
                       "connect_url": {
-                        "description": "OAuth authorization URL to connect the provider to the user account",
+                        "description": "URL to open in a browser to connect the provider",
                         "type": "string"
                       },
                       "display_name": {
@@ -66249,7 +66324,7 @@
                         "type": "string"
                       },
                       "build_type": {
-                        "description": "Build strategy for preview apps. `ingot` - build using a Dockerfile that Ingot generates from the source code. `dockerfile` - build using the Dockerfile from your repository. `railpack` - auto-detected build system, successor to Nixpacks. `pack` - build using Cloud Native Buildpacks. `nixpacks` - deprecated, use `ingot` instead. Auto-detected build system. Defaults to `ingot`.",
+                        "description": "Build strategy for preview apps. `ingot` - build using a Dockerfile that Ingot generates from the source code. `dockerfile` - build using the Dockerfile from your repository. `railpack` - auto-detected build system, successor to Nixpacks. `pack` - build using Cloud Native Buildpacks. `nixpacks` - retired auto-detected build system. Only accepted when the preview settings already use it - selecting it otherwise returns a 400 error. Defaults to `ingot`.",
                         "enum": [
                           "ingot",
                           "dockerfile",
@@ -66984,7 +67059,7 @@
                               ]
                             },
                             "schedule": {
-                              "description": "Cron expression defining the execution schedule. Required for cron processes.",
+                              "description": "Standard five-field cron expression for cron processes, such as `0 */6 * * *`. Macros like `@daily` and a seconds field are not supported. If omitted, the process runs hourly (`@hourly`).",
                               "example": "0 */6 * * *",
                               "maxLength": 100,
                               "type": "string"
@@ -68065,7 +68140,7 @@
                         "type": "string"
                       },
                       "build_type": {
-                        "description": "Build strategy for preview apps. `ingot` - build using a Dockerfile that Ingot generates from the source code. `dockerfile` - build using the Dockerfile from your repository. `railpack` - auto-detected build system, successor to Nixpacks. `pack` - build using Cloud Native Buildpacks. `nixpacks` - deprecated, use `ingot` instead. Auto-detected build system. Defaults to `ingot`.",
+                        "description": "Build strategy for preview apps. `ingot` - build using a Dockerfile that Ingot generates from the source code. `dockerfile` - build using the Dockerfile from your repository. `railpack` - auto-detected build system, successor to Nixpacks. `pack` - build using Cloud Native Buildpacks. `nixpacks` - retired auto-detected build system. Only accepted when the preview settings already use it - selecting it otherwise returns a 400 error. Defaults to `ingot`.",
                         "enum": [
                           "ingot",
                           "dockerfile",
@@ -68800,7 +68875,7 @@
                               ]
                             },
                             "schedule": {
-                              "description": "Cron expression defining the execution schedule. Required for cron processes.",
+                              "description": "Standard five-field cron expression for cron processes, such as `0 */6 * * *`. Macros like `@daily` and a seconds field are not supported. If omitted, the process runs hourly (`@hourly`).",
                               "example": "0 */6 * * *",
                               "maxLength": 100,
                               "type": "string"
@@ -69187,7 +69262,7 @@
     },
     "/pipelines/{id}/promote": {
       "post": {
-        "description": "Promote an application from one pipeline stage to another by copying the latest successful deployment from the source app to one or more target apps. The target apps receive a new deployment that reuses the source build image without rebuilding.",
+        "description": "Promote an application from one pipeline stage to another by copying the latest successful deployment from the source app to one or more target apps. The source and target apps must all be in this pipeline. The target apps receive a new deployment that reuses the source build image without rebuilding.",
         "operationId": "promotePipelineV3",
         "parameters": [
           {
@@ -69210,14 +69285,14 @@
                 "additionalProperties": false,
                 "properties": {
                   "source_app_id": {
-                    "description": "Identifier of the application to promote from. The latest successful deployment of this app will be used.",
+                    "description": "Identifier of the application to promote from. It must be in a stage of this pipeline. The latest successful deployment of this app will be used.",
                     "example": "fb5e5168-4281-4bec-94c5-0d1584e9e657",
                     "format": "uuid",
                     "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
                     "type": "string"
                   },
                   "target_app_ids": {
-                    "description": "Identifiers of the applications to promote to. Each target app will receive a new deployment using the source app build.",
+                    "description": "Identifiers of the applications to promote to. Each must be in a stage of this pipeline and cannot be the source app. Each target app will receive a new deployment using the source app build.",
                     "example": [
                       "fb5e5168-4281-4bec-94c5-0d1584e9e657"
                     ],
@@ -83885,7 +83960,7 @@
             }
           },
           {
-            "description": "JSON-encoded array of filter objects for advanced filtering. Each filter has a `key`, `operator`, and `value` or `values` field. Supported keys are `attributes.<name>` (log attributes such as clientRequestPath, clientRequestMethod or edgeResponseStatus), `tags.<name>`, `id`, `message` and `severity`. Unsupported keys are rejected with a 400 response.",
+            "description": "JSON-encoded array of filter objects for advanced filtering. Each filter has a `key`, `operator`, and `value` or `values` field. Supported keys are `attributes.<name>` (log attributes such as clientRequestPath, clientRequestMethod or edgeResponseStatus), `tags.<name>`, `id`, `message` and `severity`. `value` must be a string and `values` an array of strings. You can send up to 20 filters, up to 100 `values` per filter and strings up to 1000 characters. Invalid JSON, unsupported keys or operators and filters outside these limits are rejected with a 400 response.",
             "in": "query",
             "name": "filters",
             "required": false,
@@ -84215,7 +84290,7 @@
             }
           },
           {
-            "description": "JSON-encoded array of filter objects for advanced filtering. Each filter has a `key`, `operator`, and `value` or `values` field. Supported keys are `attributes.<name>` (log attributes such as clientRequestPath, clientRequestMethod or edgeResponseStatus), `tags.<name>`, `id`, `message` and `severity`. Unsupported keys are rejected with a 400 response.",
+            "description": "JSON-encoded array of filter objects for advanced filtering. Each filter has a `key`, `operator`, and `value` or `values` field. Supported keys are `attributes.<name>` (log attributes such as clientRequestPath, clientRequestMethod or edgeResponseStatus), `tags.<name>`, `id`, `message` and `severity`. `value` must be a string and `values` an array of strings. You can send up to 20 filters, up to 100 `values` per filter and strings up to 1000 characters. Invalid JSON, unsupported keys or operators and filters outside these limits are rejected with a 400 response.",
             "in": "query",
             "name": "filters",
             "required": false,
@@ -84557,7 +84632,7 @@
             }
           },
           {
-            "description": "JSON-encoded array of filter objects for advanced filtering. Each filter has a `key`, `operator`, and `value` or `values` field. Supported keys are `attributes.<name>` (log attributes such as clientRequestPath, clientRequestMethod or edgeResponseStatus), `tags.<name>`, `id`, `message` and `severity`. Unsupported keys are rejected with a 400 response.",
+            "description": "JSON-encoded array of filter objects for advanced filtering. Each filter has a `key`, `operator`, and `value` or `values` field. Supported keys are `attributes.<name>` (log attributes such as clientRequestPath, clientRequestMethod or edgeResponseStatus), `tags.<name>`, `id`, `message` and `severity`. `value` must be a string and `values` an array of strings. You can send up to 20 filters, up to 100 `values` per filter and strings up to 1000 characters. Invalid JSON, unsupported keys or operators and filters outside these limits are rejected with a 400 response.",
             "in": "query",
             "name": "filters",
             "required": false,
@@ -84879,7 +84954,7 @@
             }
           },
           {
-            "description": "JSON-encoded array of filter objects for advanced filtering. Each filter has a `key`, `operator`, and `value` or `values` field. Supported keys are `attributes.<name>` (log attributes such as clientRequestPath, clientRequestMethod or edgeResponseStatus), `tags.<name>`, `id`, `message` and `severity`. Unsupported keys are rejected with a 400 response.",
+            "description": "JSON-encoded array of filter objects for advanced filtering. Each filter has a `key`, `operator`, and `value` or `values` field. Supported keys are `attributes.<name>` (log attributes such as clientRequestPath, clientRequestMethod or edgeResponseStatus), `tags.<name>`, `id`, `message` and `severity`. `value` must be a string and `values` an array of strings. You can send up to 20 filters, up to 100 `values` per filter and strings up to 1000 characters. Invalid JSON, unsupported keys or operators and filters outside these limits are rejected with a 400 response.",
             "in": "query",
             "name": "filters",
             "required": false,
@@ -85242,7 +85317,7 @@
             }
           },
           {
-            "description": "JSON-encoded array of filter objects for advanced filtering. Each filter has a `key`, `operator`, and `value` or `values` field. Supported keys are `attributes.<name>` (log attributes such as clientRequestPath, clientRequestMethod or edgeResponseStatus), `tags.<name>`, `id`, `message` and `severity`. Unsupported keys are rejected with a 400 response.",
+            "description": "JSON-encoded array of filter objects for advanced filtering. Each filter has a `key`, `operator`, and `value` or `values` field. Supported keys are `attributes.<name>` (log attributes such as clientRequestPath, clientRequestMethod or edgeResponseStatus), `tags.<name>`, `id`, `message` and `severity`. `value` must be a string and `values` an array of strings. You can send up to 20 filters, up to 100 `values` per filter and strings up to 1000 characters. Invalid JSON, unsupported keys or operators and filters outside these limits are rejected with a 400 response.",
             "in": "query",
             "name": "filters",
             "required": false,
@@ -85582,7 +85657,7 @@
             }
           },
           {
-            "description": "JSON-encoded array of filter objects for advanced filtering. Each filter has a `key`, `operator`, and `value` or `values` field. Supported keys are `attributes.<name>` (log attributes such as clientRequestPath, clientRequestMethod or edgeResponseStatus), `tags.<name>`, `id`, `message` and `severity`. Unsupported keys are rejected with a 400 response.",
+            "description": "JSON-encoded array of filter objects for advanced filtering. Each filter has a `key`, `operator`, and `value` or `values` field. Supported keys are `attributes.<name>` (log attributes such as clientRequestPath, clientRequestMethod or edgeResponseStatus), `tags.<name>`, `id`, `message` and `severity`. `value` must be a string and `values` an array of strings. You can send up to 20 filters, up to 100 `values` per filter and strings up to 1000 characters. Invalid JSON, unsupported keys or operators and filters outside these limits are rejected with a 400 response.",
             "in": "query",
             "name": "filters",
             "required": false,
@@ -85933,7 +86008,7 @@
             }
           },
           {
-            "description": "JSON-encoded array of filter objects for advanced filtering. Each filter has a `key`, `operator`, and `value` or `values` field. Supported keys are `attributes.<name>` (log attributes such as clientRequestPath, clientRequestMethod or edgeResponseStatus), `tags.<name>`, `id`, `message` and `severity`. Unsupported keys are rejected with a 400 response.",
+            "description": "JSON-encoded array of filter objects for advanced filtering. Each filter has a `key`, `operator`, and `value` or `values` field. Supported keys are `attributes.<name>` (log attributes such as clientRequestPath, clientRequestMethod or edgeResponseStatus), `tags.<name>`, `id`, `message` and `severity`. `value` must be a string and `values` an array of strings. You can send up to 20 filters, up to 100 `values` per filter and strings up to 1000 characters. Invalid JSON, unsupported keys or operators and filters outside these limits are rejected with a 400 response.",
             "in": "query",
             "name": "filters",
             "required": false,
@@ -86277,7 +86352,7 @@
             }
           },
           {
-            "description": "JSON-encoded array of filter objects for advanced filtering. Each filter has a `key`, `operator`, and `value` or `values` field. Supported keys are `attributes.<name>` (log attributes such as clientRequestPath, clientRequestMethod or edgeResponseStatus), `tags.<name>`, `id`, `message` and `severity`. Unsupported keys are rejected with a 400 response.",
+            "description": "JSON-encoded array of filter objects for advanced filtering. Each filter has a `key`, `operator`, and `value` or `values` field. Supported keys are `attributes.<name>` (log attributes such as clientRequestPath, clientRequestMethod or edgeResponseStatus), `tags.<name>`, `id`, `message` and `severity`. `value` must be a string and `values` an array of strings. You can send up to 20 filters, up to 100 `values` per filter and strings up to 1000 characters. Invalid JSON, unsupported keys or operators and filters outside these limits are rejected with a 400 response.",
             "in": "query",
             "name": "filters",
             "required": false,
@@ -87532,7 +87607,7 @@
     },
     "/static-sites/{id}/repository/contents": {
       "get": {
-        "description": "Read the contents of a single file from the static site Git repository at a given ref. Defaults to the commit of the latest successful deployment so you read exactly the code that is deployed. Binary files and files larger than 1 MB return metadata only with a null `content` (check `is_binary` and `truncated`). Returns 404 when the file does not exist at the ref. Static sites always have a `privateGit` or `publicGit` source; the 422 response only occurs if the repository URL is missing.",
+        "description": "Read the contents of a single file from the static site Git repository at a given ref. Defaults to the commit of the latest successful deployment so you read exactly the code that is deployed. Binary files and files larger than 1 MB return metadata only with a null `content` (check `is_binary` and `truncated`). Returns 404 when the file does not exist at the ref. Static sites always have a `privateGit` or `publicGit` source; the 422 response occurs if the repository URL is missing, or, with the reason, if the Git connections of the company can no longer read the repository.",
         "operationId": "getStaticSiteRepositoryFileV3",
         "parameters": [
           {
@@ -87918,11 +87993,11 @@
     },
     "/static-sites/{id}/repository/search": {
       "get": {
-        "description": "Search the static site Git repository for code matching a query, useful for locating where something is defined or used. Search runs against the provider index, which covers the default branch, so it does not accept a ref. Result quality varies by provider: it is strongest on GitHub and more limited on GitLab and Bitbucket. Static sites always have a `privateGit` or `publicGit` source; the 422 response only occurs if the repository URL is missing.",
+        "description": "Search the static site Git repository for code matching a query, useful for locating where something is defined or used. Search runs against the provider index, which covers the default branch, so it does not accept a ref. Result quality varies by provider: it is strongest on GitHub and more limited on GitLab and Bitbucket. Static sites always have a `privateGit` or `publicGit` source; the 422 response occurs if the repository URL is missing, or, with the reason, if the Git connections of the company can no longer read the repository.",
         "operationId": "searchStaticSiteRepositoryV3",
         "parameters": [
           {
-            "description": "Code search query. Searches file contents in the repository.",
+            "description": "Text to search for in the repository file contents. On GitHub and Bitbucket it is matched as one exact phrase, and search qualifiers such as `repo:` or `path:` are treated as plain text.",
             "in": "query",
             "name": "query",
             "required": true,
@@ -88295,7 +88370,7 @@
     },
     "/static-sites/{id}/repository/tree": {
       "get": {
-        "description": "List files and directories in the static site Git repository at a given ref. Use this to discover the repository structure before reading individual files. Defaults to reading the commit of the latest successful deployment so you see exactly the code that is deployed. Static sites always have a `privateGit` or `publicGit` source; the 422 response only occurs if the repository URL is missing.",
+        "description": "List files and directories in the static site Git repository at a given ref. Use this to discover the repository structure before reading individual files. Defaults to reading the commit of the latest successful deployment so you see exactly the code that is deployed. Static sites always have a `privateGit` or `publicGit` source; the 422 response occurs if the repository URL is missing, or, with the reason, if the Git connections of the company can no longer read the repository.",
         "operationId": "listStaticSiteRepositoryTreeV3",
         "parameters": [
           {
@@ -90647,6 +90722,1635 @@
         ],
         "x-required-permissions": [
           "BILLING:UPDATE"
+        ]
+      }
+    },
+    "/usage/periods": {
+      "get": {
+        "description": "List the company's billing periods, newest first, each with its usage and cost per usage type. The first item is the current billing period. It is still open, so its amounts can change until it closes. The amounts of a billing period are calculated the way its invoice is: each usage type is priced on the usage of the whole period, at the current prices, and rounded once. They are an estimate of the invoice, not a copy of it, and they are before tax, credits and discounts. Usage is counted in the period it was billed in, which is several hours after it happened. The list goes back to the period of the company's first billed usage. To get the days or services of a period, pass its `period_start` and `period_end` to the usage summary endpoint. A company without an active subscription has no billing periods and gets an empty list. Send usage requests one after another: while another usage request of the company is still running, a request can get a 429 with a `retry-after` header.",
+        "operationId": "listUsagePeriodsV3",
+        "parameters": [
+          {
+            "description": "Maximum number of billing periods to return, counted back from the current one",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 12,
+              "example": 12,
+              "maximum": 24,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Count only the usage of the services that are in this project now. Usage of a service that was deleted or moved out of the project is not counted, and a project without services gives zero usage. Returns 404 when the company has no such project.",
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "example": "fb5e5168-4281-4bec-94c5-0d1584e9e657",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Comma-separated identifiers of the services to count: applications, databases, static sites, object storage buckets and load balancers. Up to 100 identifiers. Together with `project_id`, only the listed services that are in the project are counted. An identifier without usage adds nothing.",
+            "in": "query",
+            "name": "service_ids",
+            "required": false,
+            "schema": {
+              "example": "fb5e5168-4281-4bec-94c5-0d1584e9e657,0b9b4e3c-6a0f-4d53-9a55-6f0f4d0f1c2e",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Comma-separated usage types to count. By default every type is counted. `appCompute` - running time of application processes. `appStorage` - persistent disks of applications. `appBuild` - build time of applications. `appBandwidth` - bandwidth of applications. `staticSiteBuild` - build time of static sites. `staticSiteBandwidth` - bandwidth of static sites. `db` - running time of databases. `objectStorage` - data stored in object storage buckets. `loadBalancer` - running time of load balancers. `loadBalancerBandwidth` - bandwidth of load balancers.",
+            "in": "query",
+            "name": "types",
+            "required": false,
+            "schema": {
+              "example": "appCompute,db",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "description": "Billing periods, newest first",
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "period_end": {
+                            "description": "End of the window the usage is counted for, in ISO 8601 format. For a range of days it is the last millisecond of the last day.",
+                            "example": "2026-11-14T09:23:11.000Z",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                            "type": "string"
+                          },
+                          "period_start": {
+                            "description": "Start of the window the usage is counted for, in ISO 8601 format",
+                            "example": "2026-10-14T09:23:11.000Z",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                            "type": "string"
+                          },
+                          "total_cost": {
+                            "description": "Sum of the costs of all usage types in USD, before tax, credits and discounts",
+                            "example": 20.62,
+                            "type": "number"
+                          },
+                          "usage_by_type": {
+                            "description": "Usage and cost per usage type. A type without usage is left out.",
+                            "items": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "cost": {
+                                  "description": "Cost of the usage in USD before tax, credits and discounts, rounded to cents",
+                                  "example": 20.62,
+                                  "type": "number"
+                                },
+                                "total_usage": {
+                                  "description": "Amount of usage in the billing unit of the type. The unit depends on the type (running time weighted by the size of the resource, or bytes), so usage of different types cannot be added together.",
+                                  "example": 2678400,
+                                  "type": "number"
+                                },
+                                "type": {
+                                  "description": "Usage type. `appCompute` - running time of application processes. `appStorage` - persistent disks of applications. `appBuild` - build time of applications. `appBandwidth` - bandwidth of applications. `staticSiteBuild` - build time of static sites. `staticSiteBandwidth` - bandwidth of static sites. `db` - running time of databases. `objectStorage` - data stored in object storage buckets. `loadBalancer` - running time of load balancers. `loadBalancerBandwidth` - bandwidth of load balancers.",
+                                  "enum": [
+                                    "appCompute",
+                                    "appStorage",
+                                    "appBuild",
+                                    "appBandwidth",
+                                    "staticSiteBuild",
+                                    "staticSiteBandwidth",
+                                    "db",
+                                    "objectStorage",
+                                    "loadBalancer",
+                                    "loadBalancerBandwidth"
+                                  ],
+                                  "example": "appCompute",
+                                  "type": "string"
+                                },
+                                "unit_price": {
+                                  "description": "Effective price of one unit of usage in USD, before tax. The price tier comes from the usage of the whole company in the billing period, also when the result is filtered. Over several billing periods it is the average price of those periods.",
+                                  "example": 7.7e-06,
+                                  "type": "number"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "total_usage",
+                                "unit_price",
+                                "cost"
+                              ],
+                              "type": "object"
+                            },
+                            "type": "array"
+                          }
+                        },
+                        "required": [
+                          "period_start",
+                          "period_end",
+                          "total_cost",
+                          "usage_by_type"
+                        ],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Default Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "code": {
+                          "description": "Error tracking code for support reference",
+                          "example": "err-abc-123",
+                          "type": "string"
+                        },
+                        "message": {
+                          "description": "Additional error details or instructions",
+                          "example": "If you need assistance, please contact support and provide this error code.",
+                          "type": "string"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "message": {
+                      "description": "Error message",
+                      "example": "Bad request",
+                      "type": "string"
+                    },
+                    "status": {
+                      "description": "HTTP status code",
+                      "example": 400,
+                      "maximum": 9007199254740991,
+                      "minimum": -9007199254740991,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "message",
+                    "status"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Default Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "code": {
+                          "description": "Error tracking code for support reference",
+                          "example": "err-abc-123",
+                          "type": "string"
+                        },
+                        "message": {
+                          "description": "Additional error details or instructions",
+                          "example": "If you need assistance, please contact support and provide this error code.",
+                          "type": "string"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "message": {
+                      "description": "Error message",
+                      "example": "Unauthorized",
+                      "type": "string"
+                    },
+                    "status": {
+                      "description": "HTTP status code",
+                      "example": 401,
+                      "maximum": 9007199254740991,
+                      "minimum": -9007199254740991,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "message",
+                    "status"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Default Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "code": {
+                          "description": "Error tracking code for support reference",
+                          "example": "err-abc-123",
+                          "type": "string"
+                        },
+                        "message": {
+                          "description": "Additional error details or instructions",
+                          "example": "If you need assistance, please contact support and provide this error code.",
+                          "type": "string"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "message": {
+                      "description": "Error message",
+                      "example": "This API key is missing the <RESOURCE>:<ACTION> permission. Grant it to the key or use a key that has it.",
+                      "type": "string"
+                    },
+                    "status": {
+                      "description": "HTTP status code",
+                      "example": 403,
+                      "maximum": 9007199254740991,
+                      "minimum": -9007199254740991,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "message",
+                    "status"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Default Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "code": {
+                          "description": "Error tracking code for support reference",
+                          "example": "err-abc-123",
+                          "type": "string"
+                        },
+                        "message": {
+                          "description": "Additional error details or instructions",
+                          "example": "If you need assistance, please contact support and provide this error code.",
+                          "type": "string"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "message": {
+                      "description": "Error message",
+                      "example": "Not found",
+                      "type": "string"
+                    },
+                    "status": {
+                      "description": "HTTP status code",
+                      "example": 404,
+                      "maximum": 9007199254740991,
+                      "minimum": -9007199254740991,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "message",
+                    "status"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Default Response"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "code": {
+                          "description": "Error tracking code for support reference",
+                          "example": "err-abc-123",
+                          "type": "string"
+                        },
+                        "message": {
+                          "description": "Additional error details or instructions",
+                          "example": "If you need assistance, please contact support and provide this error code.",
+                          "type": "string"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "message": {
+                      "description": "Error message",
+                      "example": "Too many requests",
+                      "type": "string"
+                    },
+                    "status": {
+                      "description": "HTTP status code",
+                      "example": 429,
+                      "maximum": 9007199254740991,
+                      "minimum": -9007199254740991,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "message",
+                    "status"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Default Response"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "code": {
+                          "description": "Error tracking code for support reference",
+                          "example": "err-abc-123",
+                          "type": "string"
+                        },
+                        "message": {
+                          "description": "Additional error details or instructions",
+                          "example": "If you need assistance, please contact support and provide this error code.",
+                          "type": "string"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "message": {
+                      "description": "Error message",
+                      "example": "Internal Server Error",
+                      "type": "string"
+                    },
+                    "status": {
+                      "description": "HTTP status code",
+                      "example": 500,
+                      "maximum": 9007199254740991,
+                      "minimum": -9007199254740991,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "message",
+                    "status"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Default Response"
+          }
+        },
+        "summary": "List usage periods",
+        "tags": [
+          "Usage"
+        ],
+        "x-required-permissions": [
+          "BILLING:READ"
+        ]
+      }
+    },
+    "/usage/range": {
+      "get": {
+        "description": "Get the usage and cost of a free range of whole UTC days, counted by the day the usage happened, with totals per usage type and, on request, per day and per service. Use it for a calendar month or any other range that does not follow the billing periods. Each piece of usage is priced with the effective price of the billing period it was billed in, at the current prices. The amounts are an estimate and not a copy of an invoice: a free range matches no single invoice, and its totals can differ by a few cents from adding up billing periods, because each billing period is rounded on its own. All amounts are before tax, credits and discounts. Usage billed in the current period can still change in price until that period closes. Usage arrives several hours after it happens, so the most recent days can be incomplete. Returns 404 when the company has no active subscription. Send usage requests one after another: while another usage request of the company is still running, a request can get a 429 with a `retry-after` header.",
+        "operationId": "getUsageRangeV3",
+        "parameters": [
+          {
+            "description": "First UTC day of the range, as YYYY-MM-DD",
+            "in": "query",
+            "name": "start_date",
+            "required": true,
+            "schema": {
+              "example": "2026-11-01",
+              "format": "date",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Last UTC day of the range, as YYYY-MM-DD. The day itself is included. It cannot be before `start_date` and the range can cover at most 366 days.",
+            "in": "query",
+            "name": "end_date",
+            "required": true,
+            "schema": {
+              "example": "2026-11-07",
+              "format": "date",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Count only the usage of the services that are in this project now. Usage of a service that was deleted or moved out of the project is not counted, and a project without services gives zero usage. Returns 404 when the company has no such project.",
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "example": "fb5e5168-4281-4bec-94c5-0d1584e9e657",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Comma-separated identifiers of the services to count: applications, databases, static sites, object storage buckets and load balancers. Up to 100 identifiers. Together with `project_id`, only the listed services that are in the project are counted. An identifier without usage adds nothing.",
+            "in": "query",
+            "name": "service_ids",
+            "required": false,
+            "schema": {
+              "example": "fb5e5168-4281-4bec-94c5-0d1584e9e657,0b9b4e3c-6a0f-4d53-9a55-6f0f4d0f1c2e",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Comma-separated usage types to count. By default every type is counted. `appCompute` - running time of application processes. `appStorage` - persistent disks of applications. `appBuild` - build time of applications. `appBandwidth` - bandwidth of applications. `staticSiteBuild` - build time of static sites. `staticSiteBandwidth` - bandwidth of static sites. `db` - running time of databases. `objectStorage` - data stored in object storage buckets. `loadBalancer` - running time of load balancers. `loadBalancerBandwidth` - bandwidth of load balancers.",
+            "in": "query",
+            "name": "types",
+            "required": false,
+            "schema": {
+              "example": "appCompute,db",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Comma-separated optional parts to add to the response. `days` - usage per UTC day. `services` - usage per service, which can be long for a company with many services. By default neither is returned.",
+            "in": "query",
+            "name": "include",
+            "required": false,
+            "schema": {
+              "example": "days,services",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "days": {
+                      "description": "Usage per UTC day, oldest first. Only returned when `include` has `days`. A day without usage is listed with a zero total. Each cost is rounded on its own, so the days do not have to add up to `total_cost` to the cent.",
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "date": {
+                            "description": "UTC day the usage happened on, as YYYY-MM-DD",
+                            "example": "2026-10-14",
+                            "format": "date",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+                            "type": "string"
+                          },
+                          "total_cost": {
+                            "description": "Sum of the costs of all usage types in USD, before tax, credits and discounts",
+                            "example": 20.62,
+                            "type": "number"
+                          },
+                          "usage_by_type": {
+                            "description": "Usage and cost per usage type. A type without usage is left out.",
+                            "items": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "cost": {
+                                  "description": "Cost of the usage in USD before tax, credits and discounts, rounded to cents",
+                                  "example": 20.62,
+                                  "type": "number"
+                                },
+                                "total_usage": {
+                                  "description": "Amount of usage in the billing unit of the type. The unit depends on the type (running time weighted by the size of the resource, or bytes), so usage of different types cannot be added together.",
+                                  "example": 2678400,
+                                  "type": "number"
+                                },
+                                "type": {
+                                  "description": "Usage type. `appCompute` - running time of application processes. `appStorage` - persistent disks of applications. `appBuild` - build time of applications. `appBandwidth` - bandwidth of applications. `staticSiteBuild` - build time of static sites. `staticSiteBandwidth` - bandwidth of static sites. `db` - running time of databases. `objectStorage` - data stored in object storage buckets. `loadBalancer` - running time of load balancers. `loadBalancerBandwidth` - bandwidth of load balancers.",
+                                  "enum": [
+                                    "appCompute",
+                                    "appStorage",
+                                    "appBuild",
+                                    "appBandwidth",
+                                    "staticSiteBuild",
+                                    "staticSiteBandwidth",
+                                    "db",
+                                    "objectStorage",
+                                    "loadBalancer",
+                                    "loadBalancerBandwidth"
+                                  ],
+                                  "example": "appCompute",
+                                  "type": "string"
+                                },
+                                "unit_price": {
+                                  "description": "Effective price of one unit of usage in USD, before tax. The price tier comes from the usage of the whole company in the billing period, also when the result is filtered. Over several billing periods it is the average price of those periods.",
+                                  "example": 7.7e-06,
+                                  "type": "number"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "total_usage",
+                                "unit_price",
+                                "cost"
+                              ],
+                              "type": "object"
+                            },
+                            "type": "array"
+                          }
+                        },
+                        "required": [
+                          "date",
+                          "total_cost",
+                          "usage_by_type"
+                        ],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "period_end": {
+                      "description": "End of the window the usage is counted for, in ISO 8601 format. For a range of days it is the last millisecond of the last day.",
+                      "example": "2026-11-14T09:23:11.000Z",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                      "type": "string"
+                    },
+                    "period_start": {
+                      "description": "Start of the window the usage is counted for, in ISO 8601 format",
+                      "example": "2026-10-14T09:23:11.000Z",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                      "type": "string"
+                    },
+                    "services": {
+                      "description": "Usage per service. Only returned when `include` has `services`. Each cost is rounded on its own, so the services do not have to add up to `total_cost` to the cent.",
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "service_id": {
+                            "description": "Identifier of the service, or null for usage that is not tied to a service",
+                            "example": "fb5e5168-4281-4bec-94c5-0d1584e9e657",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "service_name": {
+                            "description": "Name of the service as stored with its usage, or null when no name was stored",
+                            "example": "my-app",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "total_cost": {
+                            "description": "Sum of the costs of all usage types in USD, before tax, credits and discounts",
+                            "example": 20.62,
+                            "type": "number"
+                          },
+                          "usage_by_type": {
+                            "description": "Usage and cost per usage type. A type without usage is left out.",
+                            "items": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "cost": {
+                                  "description": "Cost of the usage in USD before tax, credits and discounts, rounded to cents",
+                                  "example": 20.62,
+                                  "type": "number"
+                                },
+                                "total_usage": {
+                                  "description": "Amount of usage in the billing unit of the type. The unit depends on the type (running time weighted by the size of the resource, or bytes), so usage of different types cannot be added together.",
+                                  "example": 2678400,
+                                  "type": "number"
+                                },
+                                "type": {
+                                  "description": "Usage type. `appCompute` - running time of application processes. `appStorage` - persistent disks of applications. `appBuild` - build time of applications. `appBandwidth` - bandwidth of applications. `staticSiteBuild` - build time of static sites. `staticSiteBandwidth` - bandwidth of static sites. `db` - running time of databases. `objectStorage` - data stored in object storage buckets. `loadBalancer` - running time of load balancers. `loadBalancerBandwidth` - bandwidth of load balancers.",
+                                  "enum": [
+                                    "appCompute",
+                                    "appStorage",
+                                    "appBuild",
+                                    "appBandwidth",
+                                    "staticSiteBuild",
+                                    "staticSiteBandwidth",
+                                    "db",
+                                    "objectStorage",
+                                    "loadBalancer",
+                                    "loadBalancerBandwidth"
+                                  ],
+                                  "example": "appCompute",
+                                  "type": "string"
+                                },
+                                "unit_price": {
+                                  "description": "Effective price of one unit of usage in USD, before tax. The price tier comes from the usage of the whole company in the billing period, also when the result is filtered. Over several billing periods it is the average price of those periods.",
+                                  "example": 7.7e-06,
+                                  "type": "number"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "total_usage",
+                                "unit_price",
+                                "cost"
+                              ],
+                              "type": "object"
+                            },
+                            "type": "array"
+                          }
+                        },
+                        "required": [
+                          "service_id",
+                          "service_name",
+                          "total_cost",
+                          "usage_by_type"
+                        ],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "total_cost": {
+                      "description": "Sum of the costs of all usage types in USD, before tax, credits and discounts",
+                      "example": 20.62,
+                      "type": "number"
+                    },
+                    "usage_by_type": {
+                      "description": "Usage and cost per usage type. A type without usage is left out.",
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "cost": {
+                            "description": "Cost of the usage in USD before tax, credits and discounts, rounded to cents",
+                            "example": 20.62,
+                            "type": "number"
+                          },
+                          "total_usage": {
+                            "description": "Amount of usage in the billing unit of the type. The unit depends on the type (running time weighted by the size of the resource, or bytes), so usage of different types cannot be added together.",
+                            "example": 2678400,
+                            "type": "number"
+                          },
+                          "type": {
+                            "description": "Usage type. `appCompute` - running time of application processes. `appStorage` - persistent disks of applications. `appBuild` - build time of applications. `appBandwidth` - bandwidth of applications. `staticSiteBuild` - build time of static sites. `staticSiteBandwidth` - bandwidth of static sites. `db` - running time of databases. `objectStorage` - data stored in object storage buckets. `loadBalancer` - running time of load balancers. `loadBalancerBandwidth` - bandwidth of load balancers.",
+                            "enum": [
+                              "appCompute",
+                              "appStorage",
+                              "appBuild",
+                              "appBandwidth",
+                              "staticSiteBuild",
+                              "staticSiteBandwidth",
+                              "db",
+                              "objectStorage",
+                              "loadBalancer",
+                              "loadBalancerBandwidth"
+                            ],
+                            "example": "appCompute",
+                            "type": "string"
+                          },
+                          "unit_price": {
+                            "description": "Effective price of one unit of usage in USD, before tax. The price tier comes from the usage of the whole company in the billing period, also when the result is filtered. Over several billing periods it is the average price of those periods.",
+                            "example": 7.7e-06,
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "type",
+                          "total_usage",
+                          "unit_price",
+                          "cost"
+                        ],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    }
+                  },
+                  "required": [
+                    "period_start",
+                    "period_end",
+                    "total_cost",
+                    "usage_by_type"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Default Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "code": {
+                          "description": "Error tracking code for support reference",
+                          "example": "err-abc-123",
+                          "type": "string"
+                        },
+                        "message": {
+                          "description": "Additional error details or instructions",
+                          "example": "If you need assistance, please contact support and provide this error code.",
+                          "type": "string"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "message": {
+                      "description": "Error message",
+                      "example": "Bad request",
+                      "type": "string"
+                    },
+                    "status": {
+                      "description": "HTTP status code",
+                      "example": 400,
+                      "maximum": 9007199254740991,
+                      "minimum": -9007199254740991,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "message",
+                    "status"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Default Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "code": {
+                          "description": "Error tracking code for support reference",
+                          "example": "err-abc-123",
+                          "type": "string"
+                        },
+                        "message": {
+                          "description": "Additional error details or instructions",
+                          "example": "If you need assistance, please contact support and provide this error code.",
+                          "type": "string"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "message": {
+                      "description": "Error message",
+                      "example": "Unauthorized",
+                      "type": "string"
+                    },
+                    "status": {
+                      "description": "HTTP status code",
+                      "example": 401,
+                      "maximum": 9007199254740991,
+                      "minimum": -9007199254740991,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "message",
+                    "status"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Default Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "code": {
+                          "description": "Error tracking code for support reference",
+                          "example": "err-abc-123",
+                          "type": "string"
+                        },
+                        "message": {
+                          "description": "Additional error details or instructions",
+                          "example": "If you need assistance, please contact support and provide this error code.",
+                          "type": "string"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "message": {
+                      "description": "Error message",
+                      "example": "This API key is missing the <RESOURCE>:<ACTION> permission. Grant it to the key or use a key that has it.",
+                      "type": "string"
+                    },
+                    "status": {
+                      "description": "HTTP status code",
+                      "example": 403,
+                      "maximum": 9007199254740991,
+                      "minimum": -9007199254740991,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "message",
+                    "status"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Default Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "code": {
+                          "description": "Error tracking code for support reference",
+                          "example": "err-abc-123",
+                          "type": "string"
+                        },
+                        "message": {
+                          "description": "Additional error details or instructions",
+                          "example": "If you need assistance, please contact support and provide this error code.",
+                          "type": "string"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "message": {
+                      "description": "Error message",
+                      "example": "Not found",
+                      "type": "string"
+                    },
+                    "status": {
+                      "description": "HTTP status code",
+                      "example": 404,
+                      "maximum": 9007199254740991,
+                      "minimum": -9007199254740991,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "message",
+                    "status"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Default Response"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "code": {
+                          "description": "Error tracking code for support reference",
+                          "example": "err-abc-123",
+                          "type": "string"
+                        },
+                        "message": {
+                          "description": "Additional error details or instructions",
+                          "example": "If you need assistance, please contact support and provide this error code.",
+                          "type": "string"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "message": {
+                      "description": "Error message",
+                      "example": "Too many requests",
+                      "type": "string"
+                    },
+                    "status": {
+                      "description": "HTTP status code",
+                      "example": 429,
+                      "maximum": 9007199254740991,
+                      "minimum": -9007199254740991,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "message",
+                    "status"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Default Response"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "code": {
+                          "description": "Error tracking code for support reference",
+                          "example": "err-abc-123",
+                          "type": "string"
+                        },
+                        "message": {
+                          "description": "Additional error details or instructions",
+                          "example": "If you need assistance, please contact support and provide this error code.",
+                          "type": "string"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "message": {
+                      "description": "Error message",
+                      "example": "Internal Server Error",
+                      "type": "string"
+                    },
+                    "status": {
+                      "description": "HTTP status code",
+                      "example": 500,
+                      "maximum": 9007199254740991,
+                      "minimum": -9007199254740991,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "message",
+                    "status"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Default Response"
+          }
+        },
+        "summary": "Get usage for a date range",
+        "tags": [
+          "Usage"
+        ],
+        "x-required-permissions": [
+          "BILLING:READ"
+        ]
+      }
+    },
+    "/usage/summary": {
+      "get": {
+        "description": "Get the usage and cost of one billing window, with totals per usage type and, on request, per day and per service. Without `period_start` and `period_end` it covers the current billing period. For an earlier period, copy both values from an item of the usage periods endpoint. The amounts of a billing period are calculated the way its invoice is, at the current prices, so they are an estimate of the invoice and not a copy of it. All amounts are before tax, credits and discounts. The current period is still open, so its amounts can change until it closes. A window over several billing periods is priced period by period, and a window that covers only a part of a period uses the prices of that whole period. The totals of a window over several periods can differ by a few cents from adding up the single periods, because each billing period is rounded on its own. Usage is counted in the window it was billed in, which is several hours after it happened, so `days` can start with a day before the window. Days are UTC days. Returns 404 when the company has no active subscription. Send usage requests one after another: while another usage request of the company is still running, a request can get a 429 with a `retry-after` header.",
+        "operationId": "getUsageSummaryV3",
+        "parameters": [
+          {
+            "description": "Start of the window in ISO 8601 format, normally the `period_start` of an item of the usage periods endpoint. Send it together with `period_end`, or leave both out to get the current billing period.",
+            "in": "query",
+            "name": "period_start",
+            "required": false,
+            "schema": {
+              "example": "2026-10-14T09:23:11.000Z",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "End of the window in ISO 8601 format, normally the `period_end` of an item of the usage periods endpoint. It cannot be before `period_start` and the window can cover at most 366 days.",
+            "in": "query",
+            "name": "period_end",
+            "required": false,
+            "schema": {
+              "example": "2026-11-14T09:23:11.000Z",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Count only the usage of the services that are in this project now. Usage of a service that was deleted or moved out of the project is not counted, and a project without services gives zero usage. Returns 404 when the company has no such project.",
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "example": "fb5e5168-4281-4bec-94c5-0d1584e9e657",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Comma-separated identifiers of the services to count: applications, databases, static sites, object storage buckets and load balancers. Up to 100 identifiers. Together with `project_id`, only the listed services that are in the project are counted. An identifier without usage adds nothing.",
+            "in": "query",
+            "name": "service_ids",
+            "required": false,
+            "schema": {
+              "example": "fb5e5168-4281-4bec-94c5-0d1584e9e657,0b9b4e3c-6a0f-4d53-9a55-6f0f4d0f1c2e",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Comma-separated usage types to count. By default every type is counted. `appCompute` - running time of application processes. `appStorage` - persistent disks of applications. `appBuild` - build time of applications. `appBandwidth` - bandwidth of applications. `staticSiteBuild` - build time of static sites. `staticSiteBandwidth` - bandwidth of static sites. `db` - running time of databases. `objectStorage` - data stored in object storage buckets. `loadBalancer` - running time of load balancers. `loadBalancerBandwidth` - bandwidth of load balancers.",
+            "in": "query",
+            "name": "types",
+            "required": false,
+            "schema": {
+              "example": "appCompute,db",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Comma-separated optional parts to add to the response. `days` - usage per UTC day. `services` - usage per service, which can be long for a company with many services. By default neither is returned.",
+            "in": "query",
+            "name": "include",
+            "required": false,
+            "schema": {
+              "example": "days,services",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "days": {
+                      "description": "Usage per UTC day, oldest first. Only returned when `include` has `days`. A day without usage is listed with a zero total. Each cost is rounded on its own, so the days do not have to add up to `total_cost` to the cent.",
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "date": {
+                            "description": "UTC day the usage happened on, as YYYY-MM-DD",
+                            "example": "2026-10-14",
+                            "format": "date",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+                            "type": "string"
+                          },
+                          "total_cost": {
+                            "description": "Sum of the costs of all usage types in USD, before tax, credits and discounts",
+                            "example": 20.62,
+                            "type": "number"
+                          },
+                          "usage_by_type": {
+                            "description": "Usage and cost per usage type. A type without usage is left out.",
+                            "items": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "cost": {
+                                  "description": "Cost of the usage in USD before tax, credits and discounts, rounded to cents",
+                                  "example": 20.62,
+                                  "type": "number"
+                                },
+                                "total_usage": {
+                                  "description": "Amount of usage in the billing unit of the type. The unit depends on the type (running time weighted by the size of the resource, or bytes), so usage of different types cannot be added together.",
+                                  "example": 2678400,
+                                  "type": "number"
+                                },
+                                "type": {
+                                  "description": "Usage type. `appCompute` - running time of application processes. `appStorage` - persistent disks of applications. `appBuild` - build time of applications. `appBandwidth` - bandwidth of applications. `staticSiteBuild` - build time of static sites. `staticSiteBandwidth` - bandwidth of static sites. `db` - running time of databases. `objectStorage` - data stored in object storage buckets. `loadBalancer` - running time of load balancers. `loadBalancerBandwidth` - bandwidth of load balancers.",
+                                  "enum": [
+                                    "appCompute",
+                                    "appStorage",
+                                    "appBuild",
+                                    "appBandwidth",
+                                    "staticSiteBuild",
+                                    "staticSiteBandwidth",
+                                    "db",
+                                    "objectStorage",
+                                    "loadBalancer",
+                                    "loadBalancerBandwidth"
+                                  ],
+                                  "example": "appCompute",
+                                  "type": "string"
+                                },
+                                "unit_price": {
+                                  "description": "Effective price of one unit of usage in USD, before tax. The price tier comes from the usage of the whole company in the billing period, also when the result is filtered. Over several billing periods it is the average price of those periods.",
+                                  "example": 7.7e-06,
+                                  "type": "number"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "total_usage",
+                                "unit_price",
+                                "cost"
+                              ],
+                              "type": "object"
+                            },
+                            "type": "array"
+                          }
+                        },
+                        "required": [
+                          "date",
+                          "total_cost",
+                          "usage_by_type"
+                        ],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "period_end": {
+                      "description": "End of the window the usage is counted for, in ISO 8601 format. For a range of days it is the last millisecond of the last day.",
+                      "example": "2026-11-14T09:23:11.000Z",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                      "type": "string"
+                    },
+                    "period_start": {
+                      "description": "Start of the window the usage is counted for, in ISO 8601 format",
+                      "example": "2026-10-14T09:23:11.000Z",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                      "type": "string"
+                    },
+                    "services": {
+                      "description": "Usage per service. Only returned when `include` has `services`. Each cost is rounded on its own, so the services do not have to add up to `total_cost` to the cent.",
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "service_id": {
+                            "description": "Identifier of the service, or null for usage that is not tied to a service",
+                            "example": "fb5e5168-4281-4bec-94c5-0d1584e9e657",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "service_name": {
+                            "description": "Name of the service as stored with its usage, or null when no name was stored",
+                            "example": "my-app",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "total_cost": {
+                            "description": "Sum of the costs of all usage types in USD, before tax, credits and discounts",
+                            "example": 20.62,
+                            "type": "number"
+                          },
+                          "usage_by_type": {
+                            "description": "Usage and cost per usage type. A type without usage is left out.",
+                            "items": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "cost": {
+                                  "description": "Cost of the usage in USD before tax, credits and discounts, rounded to cents",
+                                  "example": 20.62,
+                                  "type": "number"
+                                },
+                                "total_usage": {
+                                  "description": "Amount of usage in the billing unit of the type. The unit depends on the type (running time weighted by the size of the resource, or bytes), so usage of different types cannot be added together.",
+                                  "example": 2678400,
+                                  "type": "number"
+                                },
+                                "type": {
+                                  "description": "Usage type. `appCompute` - running time of application processes. `appStorage` - persistent disks of applications. `appBuild` - build time of applications. `appBandwidth` - bandwidth of applications. `staticSiteBuild` - build time of static sites. `staticSiteBandwidth` - bandwidth of static sites. `db` - running time of databases. `objectStorage` - data stored in object storage buckets. `loadBalancer` - running time of load balancers. `loadBalancerBandwidth` - bandwidth of load balancers.",
+                                  "enum": [
+                                    "appCompute",
+                                    "appStorage",
+                                    "appBuild",
+                                    "appBandwidth",
+                                    "staticSiteBuild",
+                                    "staticSiteBandwidth",
+                                    "db",
+                                    "objectStorage",
+                                    "loadBalancer",
+                                    "loadBalancerBandwidth"
+                                  ],
+                                  "example": "appCompute",
+                                  "type": "string"
+                                },
+                                "unit_price": {
+                                  "description": "Effective price of one unit of usage in USD, before tax. The price tier comes from the usage of the whole company in the billing period, also when the result is filtered. Over several billing periods it is the average price of those periods.",
+                                  "example": 7.7e-06,
+                                  "type": "number"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "total_usage",
+                                "unit_price",
+                                "cost"
+                              ],
+                              "type": "object"
+                            },
+                            "type": "array"
+                          }
+                        },
+                        "required": [
+                          "service_id",
+                          "service_name",
+                          "total_cost",
+                          "usage_by_type"
+                        ],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "total_cost": {
+                      "description": "Sum of the costs of all usage types in USD, before tax, credits and discounts",
+                      "example": 20.62,
+                      "type": "number"
+                    },
+                    "usage_by_type": {
+                      "description": "Usage and cost per usage type. A type without usage is left out.",
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "cost": {
+                            "description": "Cost of the usage in USD before tax, credits and discounts, rounded to cents",
+                            "example": 20.62,
+                            "type": "number"
+                          },
+                          "total_usage": {
+                            "description": "Amount of usage in the billing unit of the type. The unit depends on the type (running time weighted by the size of the resource, or bytes), so usage of different types cannot be added together.",
+                            "example": 2678400,
+                            "type": "number"
+                          },
+                          "type": {
+                            "description": "Usage type. `appCompute` - running time of application processes. `appStorage` - persistent disks of applications. `appBuild` - build time of applications. `appBandwidth` - bandwidth of applications. `staticSiteBuild` - build time of static sites. `staticSiteBandwidth` - bandwidth of static sites. `db` - running time of databases. `objectStorage` - data stored in object storage buckets. `loadBalancer` - running time of load balancers. `loadBalancerBandwidth` - bandwidth of load balancers.",
+                            "enum": [
+                              "appCompute",
+                              "appStorage",
+                              "appBuild",
+                              "appBandwidth",
+                              "staticSiteBuild",
+                              "staticSiteBandwidth",
+                              "db",
+                              "objectStorage",
+                              "loadBalancer",
+                              "loadBalancerBandwidth"
+                            ],
+                            "example": "appCompute",
+                            "type": "string"
+                          },
+                          "unit_price": {
+                            "description": "Effective price of one unit of usage in USD, before tax. The price tier comes from the usage of the whole company in the billing period, also when the result is filtered. Over several billing periods it is the average price of those periods.",
+                            "example": 7.7e-06,
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "type",
+                          "total_usage",
+                          "unit_price",
+                          "cost"
+                        ],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    }
+                  },
+                  "required": [
+                    "period_start",
+                    "period_end",
+                    "total_cost",
+                    "usage_by_type"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Default Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "code": {
+                          "description": "Error tracking code for support reference",
+                          "example": "err-abc-123",
+                          "type": "string"
+                        },
+                        "message": {
+                          "description": "Additional error details or instructions",
+                          "example": "If you need assistance, please contact support and provide this error code.",
+                          "type": "string"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "message": {
+                      "description": "Error message",
+                      "example": "Bad request",
+                      "type": "string"
+                    },
+                    "status": {
+                      "description": "HTTP status code",
+                      "example": 400,
+                      "maximum": 9007199254740991,
+                      "minimum": -9007199254740991,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "message",
+                    "status"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Default Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "code": {
+                          "description": "Error tracking code for support reference",
+                          "example": "err-abc-123",
+                          "type": "string"
+                        },
+                        "message": {
+                          "description": "Additional error details or instructions",
+                          "example": "If you need assistance, please contact support and provide this error code.",
+                          "type": "string"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "message": {
+                      "description": "Error message",
+                      "example": "Unauthorized",
+                      "type": "string"
+                    },
+                    "status": {
+                      "description": "HTTP status code",
+                      "example": 401,
+                      "maximum": 9007199254740991,
+                      "minimum": -9007199254740991,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "message",
+                    "status"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Default Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "code": {
+                          "description": "Error tracking code for support reference",
+                          "example": "err-abc-123",
+                          "type": "string"
+                        },
+                        "message": {
+                          "description": "Additional error details or instructions",
+                          "example": "If you need assistance, please contact support and provide this error code.",
+                          "type": "string"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "message": {
+                      "description": "Error message",
+                      "example": "This API key is missing the <RESOURCE>:<ACTION> permission. Grant it to the key or use a key that has it.",
+                      "type": "string"
+                    },
+                    "status": {
+                      "description": "HTTP status code",
+                      "example": 403,
+                      "maximum": 9007199254740991,
+                      "minimum": -9007199254740991,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "message",
+                    "status"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Default Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "code": {
+                          "description": "Error tracking code for support reference",
+                          "example": "err-abc-123",
+                          "type": "string"
+                        },
+                        "message": {
+                          "description": "Additional error details or instructions",
+                          "example": "If you need assistance, please contact support and provide this error code.",
+                          "type": "string"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "message": {
+                      "description": "Error message",
+                      "example": "Not found",
+                      "type": "string"
+                    },
+                    "status": {
+                      "description": "HTTP status code",
+                      "example": 404,
+                      "maximum": 9007199254740991,
+                      "minimum": -9007199254740991,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "message",
+                    "status"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Default Response"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "code": {
+                          "description": "Error tracking code for support reference",
+                          "example": "err-abc-123",
+                          "type": "string"
+                        },
+                        "message": {
+                          "description": "Additional error details or instructions",
+                          "example": "If you need assistance, please contact support and provide this error code.",
+                          "type": "string"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "message": {
+                      "description": "Error message",
+                      "example": "Too many requests",
+                      "type": "string"
+                    },
+                    "status": {
+                      "description": "HTTP status code",
+                      "example": 429,
+                      "maximum": 9007199254740991,
+                      "minimum": -9007199254740991,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "message",
+                    "status"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Default Response"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "code": {
+                          "description": "Error tracking code for support reference",
+                          "example": "err-abc-123",
+                          "type": "string"
+                        },
+                        "message": {
+                          "description": "Additional error details or instructions",
+                          "example": "If you need assistance, please contact support and provide this error code.",
+                          "type": "string"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "message": {
+                      "description": "Error message",
+                      "example": "Internal Server Error",
+                      "type": "string"
+                    },
+                    "status": {
+                      "description": "HTTP status code",
+                      "example": 500,
+                      "maximum": 9007199254740991,
+                      "minimum": -9007199254740991,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "message",
+                    "status"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Default Response"
+          }
+        },
+        "summary": "Get usage summary",
+        "tags": [
+          "Usage"
+        ],
+        "x-required-permissions": [
+          "BILLING:READ"
         ]
       }
     },
